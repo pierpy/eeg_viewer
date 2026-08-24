@@ -7,6 +7,7 @@ import { FileUpload } from "./components/FileUpload";
 import { FilterPanel } from "./components/FilterPanel";
 import { HistoryPanel } from "./components/HistoryPanel";
 import { TimeNavigator } from "./components/TimeNavigator";
+import { clearSession, hashFile, loadSession, saveSession } from "./persistence";
 import type { BadSegment, FileInfo, FilterSpec, HistoryEntry, SignalResponse } from "./types";
 
 const DEFAULT_FILTERS: FilterSpec[] = [
@@ -16,6 +17,7 @@ const DEFAULT_FILTERS: FilterSpec[] = [
 ];
 
 const DEBOUNCE_MS = 200;
+const MAX_HISTORY_ENTRIES = 500;
 
 function newId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
@@ -24,6 +26,8 @@ function newId(): string {
 
 export default function App() {
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null);
+  const [fileHash, setFileHash] = useState<string | null>(null);
+  const [restoredAt, setRestoredAt] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState<FilterSpec[]>(DEFAULT_FILTERS);
   const [startSec, setStartSec] = useState(0);
@@ -41,18 +45,59 @@ export default function App() {
   const selectedChannels = useMemo(() => Array.from(selected), [selected]);
 
   function appendHistory(action: string, details: Record<string, unknown> = {}) {
-    setHistory((h) => [...h, { timestamp: new Date().toISOString(), action, details }]);
+    setHistory((h) => {
+      const next = [...h, { timestamp: new Date().toISOString(), action, details }];
+      return next.length > MAX_HISTORY_ENTRIES ? next.slice(next.length - MAX_HISTORY_ENTRIES) : next;
+    });
   }
 
-  function handleFileLoaded(info: FileInfo) {
+  async function handleFileLoaded(info: FileInfo, file: File) {
+    const hash = await hashFile(file);
     setFileInfo(info);
-    setSelected(new Set(info.channels.slice(0, Math.min(8, info.channels.length)).map((c) => c.name)));
-    setStartSec(0);
+    setFileHash(hash);
     setSignalData(null);
     setError(null);
+
+    const saved = loadSession(hash);
+    const validChannelNames = new Set(info.channels.map((c) => c.name));
+    if (saved) {
+      const restoredSelection = saved.selectedChannels.filter((name) => validChannelNames.has(name));
+      setSelected(new Set(restoredSelection.length > 0 ? restoredSelection : Array.from(validChannelNames).slice(0, 8)));
+      setFilters(saved.filters.length > 0 ? saved.filters : DEFAULT_FILTERS);
+      setBadChannels(new Set(saved.badChannels.filter((name) => validChannelNames.has(name))));
+      setBadSegments(saved.badSegments);
+      setGain(saved.gain || 1);
+      setWindowSec(saved.windowSec || 10);
+      setStartSec(Math.min(saved.startSec || 0, Math.max(info.duration_sec - (saved.windowSec || 10), 0)));
+      setHistory([
+        ...saved.history,
+        { timestamp: new Date().toISOString(), action: "session_restored", details: { filename: info.filename } },
+      ]);
+      setRestoredAt(saved.savedAt);
+    } else {
+      setSelected(new Set(info.channels.slice(0, Math.min(8, info.channels.length)).map((c) => c.name)));
+      setFilters(DEFAULT_FILTERS);
+      setBadChannels(new Set());
+      setBadSegments([]);
+      setStartSec(0);
+      setWindowSec(10);
+      setGain(1);
+      setHistory([{ timestamp: new Date().toISOString(), action: "file_loaded", details: { filename: info.filename } }]);
+      setRestoredAt(null);
+    }
+  }
+
+  function handleForgetSession() {
+    if (!fileHash || !fileInfo) return;
+    clearSession(fileHash);
     setBadChannels(new Set());
     setBadSegments([]);
-    setHistory([{ timestamp: new Date().toISOString(), action: "file_loaded", details: { filename: info.filename } }]);
+    setFilters(DEFAULT_FILTERS);
+    setGain(1);
+    setRestoredAt(null);
+    setHistory([
+      { timestamp: new Date().toISOString(), action: "session_forgotten", details: { filename: fileInfo.filename } },
+    ]);
   }
 
   function handleFiltersChange(next: FilterSpec[]) {
@@ -161,6 +206,23 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fileInfo, selectedChannels.join(","), startSec, windowSec, JSON.stringify(filters)]);
 
+  // Persist the current annotation/view state for this file whenever it
+  // changes, so reopening the same .edf later (even after a reload)
+  // restores bad channels/segments, filters and the operation history.
+  useEffect(() => {
+    if (!fileHash) return;
+    saveSession(fileHash, {
+      selectedChannels,
+      filters,
+      badChannels: Array.from(badChannels),
+      badSegments,
+      history,
+      gain,
+      startSec,
+      windowSec,
+    });
+  }, [fileHash, selectedChannels, filters, badChannels, badSegments, history, gain, startSec, windowSec]);
+
   return (
     <div className="app">
       <header className="app__header">
@@ -186,6 +248,15 @@ export default function App() {
 
       {!fileInfo && (
         <div className="app__empty">Carica un file .edf per iniziare.</div>
+      )}
+
+      {fileInfo && restoredAt && (
+        <div className="app__restored-banner">
+          Sessione ripristinata (annotazioni salvate il {new Date(restoredAt).toLocaleString()}).
+          <button type="button" onClick={handleForgetSession}>
+            Dimentica e riparti da zero
+          </button>
+        </div>
       )}
 
       {fileInfo && (

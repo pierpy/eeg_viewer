@@ -102,6 +102,9 @@ npm run build
    solo quelli selezionati nel visualizzatore) sull'intera registrazione,
    con i filtri applicati, in un file MATLAB che include anche bad
    channels, bad segments e la cronologia completa delle operazioni.
+10. Riaprendo lo stesso file (anche dopo un reload della pagina), le
+    annotazioni e i filtri vengono ripristinati automaticamente da un
+    banner in alto; da lì puoi anche "dimenticarli" e ripartire da zero.
 
 ## Note tecniche
 
@@ -122,3 +125,12 @@ npm run build
   `backend/app/mat_export.py`). Il file `.mat` non decima mai il segnale:
   contiene i dati a piena risoluzione, filtrati, sull'intera registrazione
   (o sull'intervallo richiesto).
+- Bad channels/segments, filtri, guadagno, finestra temporale e cronologia
+  operazioni vengono salvati automaticamente in `localStorage` del
+  browser (`frontend/src/persistence.ts`), associati a un hash del
+  contenuto del file (non al `file_id` del server, che cambia ad ogni
+  upload). Riaprendo lo stesso `.edf` — anche dopo un reload della pagina
+  o su un upload successivo — la sessione viene ripristinata
+  automaticamente; un banner permette di "dimenticare" le annotazioni
+  salvate e ripartire da zero. È una persistenza puramente client-side,
+  legata al browser: non è condivisa tra dispositivi o browser diversi.

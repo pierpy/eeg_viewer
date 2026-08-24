@@ -40,6 +40,29 @@ body {
   color: #868e96;
 }
 
+.app__restored-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 20px;
+  background: #e7f5ff;
+  border-bottom: 1px solid #a5d8ff;
+  color: #1864ab;
+  font-size: 13px;
+}
+
+.app__restored-banner button {
+  margin-left: auto;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: 1px solid #a5d8ff;
+  background: #fff;
+  color: #1864ab;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
 .app__body {
   display: flex;
   flex: 1;

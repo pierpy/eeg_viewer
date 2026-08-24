@@ -11,6 +11,8 @@ const ACTION_LABELS: Record<string, string> = {
   channel_unmarked_bad: "Canale smarcato",
   segment_marked_bad: "Segmento marcato BAD",
   segment_removed: "Segmento rimosso",
+  session_restored: "Sessione ripristinata da annotazioni salvate",
+  session_forgotten: "Annotazioni salvate cancellate",
 };
 
 function describe(entry: HistoryEntry): string {

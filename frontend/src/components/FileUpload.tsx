@@ -3,7 +3,7 @@ import { uploadEdf } from "../api/client";
 import type { FileInfo } from "../types";
 
 interface Props {
-  onLoaded: (info: FileInfo) => void;
+  onLoaded: (info: FileInfo, file: File) => void;
 }
 
 export function FileUpload({ onLoaded }: Props) {
@@ -18,7 +18,7 @@ export function FileUpload({ onLoaded }: Props) {
     setError(null);
     try {
       const info = await uploadEdf(file);
-      onLoaded(info);
+      onLoaded(info, file);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
