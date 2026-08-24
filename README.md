@@ -3,9 +3,9 @@
 Web app per visualizzare tracciati EEG da file `.edf`: caricamento file,
 selezione dinamica dei canali, filtri di visualizzazione (passa-alto,
 passa-basso, notch), navigazione temporale su un grafico multicanale,
-marcatura di bad channel e bad segment, ed export dei dati in formato
-MATLAB (`.mat`) con tracciamento completo delle operazioni di
-pre-processing effettuate.
+marcatura di bad channel e bad segment, spettrogramma per canale ed
+export dei dati in formato MATLAB (`.mat`) con tracciamento completo
+delle operazioni di pre-processing effettuate.
 
 ## Architettura
 
@@ -34,9 +34,12 @@ esistente:
   in `frontend/src/types/index.ts`, poi aggiungi una riga nel pannello
   `frontend/src/components/FilterPanel.tsx`. Nessun altro punto del
   codice deve cambiare.
-- **Nuova feature UI** (es. annotazioni, export, spettrogramma): è un
-  nuovo componente React montato in `App.tsx`, eventualmente con un nuovo
-  router FastAPI in `backend/app/routers/` incluso in `main.py`.
+- **Nuova feature UI** (es. annotazioni, export): è un nuovo componente
+  React montato in `App.tsx`, eventualmente con un nuovo router FastAPI
+  in `backend/app/routers/` incluso in `main.py` — lo spettrogramma
+  (`backend/app/spectrogram.py` + `routers/spectrogram.py` +
+  `frontend/src/components/Spectrogram.tsx`) è un esempio di questo
+  pattern.
 - Lo storage dei file EDF caricati è isolato in `backend/app/edf_store.py`
   dietro un'interfaccia semplice (`save_upload`, `get_info`, `read_window`),
   sostituibile in futuro (es. persistenza su disco/DB) senza toccare i
@@ -105,6 +108,10 @@ npm run build
 10. Riaprendo lo stesso file (anche dopo un reload della pagina), le
     annotazioni e i filtri vengono ripristinati automaticamente da un
     banner in alto; da lì puoi anche "dimenticarli" e ripartire da zero.
+11. Clicca "SPEC" accanto a un canale per aprire il suo spettrogramma
+    (tempo-frequenza) sotto il tracciato principale; segue la stessa
+    finestra temporale e gli stessi filtri della vista corrente. Un solo
+    canale alla volta; clicca di nuovo (o la ×) per chiuderlo.
 
 ## Note tecniche
 
@@ -142,3 +149,13 @@ npm run build
   banner permette anche di "dimenticare" le annotazioni salvate e
   ripartire da zero. È una persistenza puramente client-side, legata al
   browser: non è condivisa tra dispositivi o browser diversi.
+- Lo spettrogramma (`POST /api/files/{id}/spectrogram`,
+  `backend/app/spectrogram.py`) è calcolato con `scipy.signal.spectrogram`
+  su finestre di analisi di ~1s (50% overlap) sul segnale già filtrato,
+  convertito in dB; le frequenze sono limitate a 45Hz di default
+  (`max_freq`) per restare nella banda EEG rilevante e mantenere la
+  risposta piccola. Non viene mai decimato: essendo già una
+  trasformazione tempo-frequenza compatta (decine di bin di tempo × decine
+  di bin di frequenza anche su finestre di 60s), non ne ha bisogno. La
+  color scale è la rampa sequenziale blu validata dalla skill `dataviz`
+  (100→700, `frontend/src/components/Spectrogram.tsx`).

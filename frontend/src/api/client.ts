@@ -1,4 +1,4 @@
-import type { ExportParams, FileInfo, FilterSpec, SignalResponse } from "../types";
+import type { ExportParams, FileInfo, FilterSpec, SignalResponse, SpectrogramResponse } from "../types";
 
 const BASE = "/api";
 
@@ -96,4 +96,30 @@ export async function exportMat(params: ExportParams): Promise<ExportResult> {
   const blob = await resp.blob();
   const filename = filenameFromContentDisposition(resp.headers.get("Content-Disposition"), "export.mat");
   return { blob, filename };
+}
+
+export interface GetSpectrogramParams {
+  fileId: string;
+  channel: string;
+  startSec: number;
+  durationSec: number;
+  filters: FilterSpec[];
+  maxFreq?: number;
+  signal?: AbortSignal;
+}
+
+export async function getSpectrogram(params: GetSpectrogramParams): Promise<SpectrogramResponse> {
+  const resp = await fetch(`${BASE}/files/${params.fileId}/spectrogram`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      channel: params.channel,
+      start_sec: params.startSec,
+      duration_sec: params.durationSec,
+      filters: params.filters,
+      max_freq: params.maxFreq,
+    }),
+    signal: params.signal,
+  });
+  return unwrap<SpectrogramResponse>(resp);
 }

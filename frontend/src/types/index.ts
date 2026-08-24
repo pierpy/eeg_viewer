@@ -67,3 +67,15 @@ export interface ExportParams {
   startSec?: number;
   endSec?: number;
 }
+
+// --- Spectrogram -----------------------------------------------------------
+
+export interface SpectrogramResponse {
+  channel: string;
+  start_sec: number;
+  duration_sec: number;
+  freqs: number[];
+  times: number[];
+  // power_db[i][j] is the power (dB) at freqs[i], times[j].
+  power_db: number[][];
+}

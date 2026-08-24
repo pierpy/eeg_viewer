@@ -6,6 +6,7 @@ import { EegCanvas } from "./components/EegCanvas";
 import { FileUpload } from "./components/FileUpload";
 import { FilterPanel } from "./components/FilterPanel";
 import { HistoryPanel } from "./components/HistoryPanel";
+import { Spectrogram } from "./components/Spectrogram";
 import { TimeNavigator } from "./components/TimeNavigator";
 import {
   clearLastFile,
@@ -48,6 +49,7 @@ export default function App() {
   const [badChannels, setBadChannels] = useState<Set<string>>(new Set());
   const [badSegments, setBadSegments] = useState<BadSegment[]>([]);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [spectrogramChannel, setSpectrogramChannel] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [reconnecting, setReconnecting] = useState(true);
   const [reconnectFailedFor, setReconnectFailedFor] = useState<string | null>(null);
@@ -66,6 +68,7 @@ export default function App() {
   // back to defaults if none was saved yet. Shared between opening a file
   // by hand and auto-reconnecting to the last one on page load.
   function applySessionOrDefaults(hash: string, info: FileInfo) {
+    setSpectrogramChannel(null);
     const saved = loadSession(hash);
     const validChannelNames = new Set(info.channels.map((c) => c.name));
     if (saved) {
@@ -152,6 +155,10 @@ export default function App() {
     setHistory([
       { timestamp: new Date().toISOString(), action: "session_forgotten", details: { filename: fileInfo.filename } },
     ]);
+  }
+
+  function toggleSpectrogram(name: string) {
+    setSpectrogramChannel((current) => (current === name ? null : name));
   }
 
   function handleFiltersChange(next: FilterSpec[]) {
@@ -333,8 +340,10 @@ export default function App() {
               channels={fileInfo.channels}
               selected={selected}
               badChannels={badChannels}
+              spectrogramChannel={spectrogramChannel}
               onChange={setSelected}
               onToggleBad={toggleBadChannel}
+              onToggleSpectrogram={toggleSpectrogram}
             />
             <FilterPanel filters={filters} onChange={handleFiltersChange} />
             <div className="gain-control">
@@ -377,6 +386,16 @@ export default function App() {
               />
             ) : (
               <div className="app__empty">Seleziona almeno un canale.</div>
+            )}
+            {spectrogramChannel && (
+              <Spectrogram
+                fileId={fileInfo.file_id}
+                channel={spectrogramChannel}
+                startSec={startSec}
+                windowSec={windowSec}
+                filters={filters}
+                onClose={() => setSpectrogramChannel(null)}
+              />
             )}
           </main>
         </div>

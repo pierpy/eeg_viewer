@@ -94,3 +94,27 @@ class ExportRequest(BaseModel):
     # None = export the full recording.
     start_sec: Optional[float] = Field(default=None, ge=0)
     end_sec: Optional[float] = Field(default=None, ge=0)
+
+
+# --- Spectrogram ----------------------------------------------------------
+
+
+class SpectrogramRequest(BaseModel):
+    channel: str
+    start_sec: float = Field(ge=0)
+    duration_sec: float = Field(gt=0)
+    filters: list[FilterSpec] = Field(default_factory=list)
+    # Frequencies above this are dropped from the response; EEG-relevant
+    # activity lives well under Nyquist, and clipping keeps both the
+    # payload and the color scale focused. None = up to Nyquist.
+    max_freq: Optional[float] = Field(default=45.0, gt=0)
+
+
+class SpectrogramResponse(BaseModel):
+    channel: str
+    start_sec: float
+    duration_sec: float
+    freqs: list[float]
+    times: list[float]
+    # power_db[i][j] is the power (dB) at freqs[i], times[j].
+    power_db: list[list[float]]

@@ -4,11 +4,21 @@ interface Props {
   channels: ChannelInfo[];
   selected: Set<string>;
   badChannels: Set<string>;
+  spectrogramChannel: string | null;
   onChange: (selected: Set<string>) => void;
   onToggleBad: (name: string) => void;
+  onToggleSpectrogram: (name: string) => void;
 }
 
-export function ChannelList({ channels, selected, badChannels, onChange, onToggleBad }: Props) {
+export function ChannelList({
+  channels,
+  selected,
+  badChannels,
+  spectrogramChannel,
+  onChange,
+  onToggleBad,
+  onToggleSpectrogram,
+}: Props) {
   function toggle(name: string) {
     const next = new Set(selected);
     if (next.has(name)) next.delete(name);
@@ -56,6 +66,14 @@ export function ChannelList({ channels, selected, badChannels, onChange, onToggl
                 <span className="channel-list__name">{ch.name}</span>
               </label>
               <span className="channel-list__meta">{ch.sample_rate} Hz</span>
+              <button
+                type="button"
+                className={`channel-list__spec-toggle${spectrogramChannel === ch.name ? " channel-list__spec-toggle--active" : ""}`}
+                title="Mostra/nascondi spettrogramma per questo canale"
+                onClick={() => onToggleSpectrogram(ch.name)}
+              >
+                SPEC
+              </button>
               <button
                 type="button"
                 className={`channel-list__bad-toggle${isBad ? " channel-list__bad-toggle--active" : ""}`}
