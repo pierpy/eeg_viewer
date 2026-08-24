@@ -64,3 +64,33 @@ class SignalResponse(BaseModel):
     start_sec: float
     duration_sec: float
     channels: list[ChannelSignal]
+
+
+# --- Annotations & export -----------------------------------------------
+# Bad-channel/bad-segment marks and the operation history are kept
+# client-side (this app has no per-file persistence layer) and sent along
+# with an export request so the exported file is self-describing.
+
+
+class BadSegment(BaseModel):
+    start_sec: float = Field(ge=0)
+    end_sec: float = Field(ge=0)
+    label: str = ""
+
+
+class HistoryEntry(BaseModel):
+    timestamp: str
+    action: str
+    details: dict = Field(default_factory=dict)
+
+
+class ExportRequest(BaseModel):
+    # None = export all channels in the file.
+    channels: Optional[list[str]] = None
+    filters: list[FilterSpec] = Field(default_factory=list)
+    bad_channels: list[str] = Field(default_factory=list)
+    bad_segments: list[BadSegment] = Field(default_factory=list)
+    history: list[HistoryEntry] = Field(default_factory=list)
+    # None = export the full recording.
+    start_sec: Optional[float] = Field(default=None, ge=0)
+    end_sec: Optional[float] = Field(default=None, ge=0)

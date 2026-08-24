@@ -2,7 +2,10 @@
 
 Web app per visualizzare tracciati EEG da file `.edf`: caricamento file,
 selezione dinamica dei canali, filtri di visualizzazione (passa-alto,
-passa-basso, notch) e navigazione temporale su un grafico multicanale.
+passa-basso, notch), navigazione temporale su un grafico multicanale,
+marcatura di bad channel e bad segment, ed export dei dati in formato
+MATLAB (`.mat`) con tracciamento completo delle operazioni di
+pre-processing effettuate.
 
 ## Architettura
 
@@ -87,6 +90,17 @@ npm run build
 4. Naviga nel tempo con lo slider/i pulsanti Avanti/Indietro e scegli
    l'ampiezza della finestra visibile.
 5. Regola il guadagno per scalare l'ampiezza del tracciato.
+6. Clicca il pulsante "BAD" accanto a un canale per marcarlo come bad
+   channel (il tracciato viene mostrato in grigio, la riga evidenziata).
+7. Trascina il mouse sul grafico per marcare un intervallo temporale come
+   bad segment (evidenziato in rosso su tutti i canali); clicca su un
+   segmento esistente per rimuoverlo, oppure usa il pulsante "×" nella
+   lista laterale.
+8. Ogni operazione (filtri, bad channel, bad segment) viene registrata
+   nel pannello "Cronologia operazioni".
+9. Clicca "Esporta .mat" per scaricare i dati (canali selezionati, intera
+   registrazione, filtri applicati) in un file MATLAB che include anche
+   bad channels, bad segments e la cronologia completa delle operazioni.
 
 ## Note tecniche
 
@@ -100,3 +114,10 @@ npm run build
   punti (`EEG_VIEWER_MAX_POINTS`, default 10000) per mantenere fluido il
   rendering su finestre lunghe; i filtri vengono sempre applicati sul
   segnale a piena risoluzione prima della decimazione.
+- Bad channels e bad segments sono annotazioni tenute lato client (non
+  c'è persistenza server-side per-file); vengono inviate al backend solo
+  al momento dell'export, insieme alla pipeline di filtri attiva e al log
+  completo delle operazioni (`POST /api/files/{id}/export/mat`, vedi
+  `backend/app/mat_export.py`). Il file `.mat` non decima mai il segnale:
+  contiene i dati a piena risoluzione, filtrati, sull'intera registrazione
+  (o sull'intervallo richiesto).

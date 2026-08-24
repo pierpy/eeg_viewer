@@ -41,3 +41,29 @@ export interface SignalResponse {
   duration_sec: number;
   channels: ChannelSignal[];
 }
+
+// --- Annotations & export ------------------------------------------------
+
+export interface BadSegment {
+  id: string;
+  startSec: number;
+  endSec: number;
+  label?: string;
+}
+
+export interface HistoryEntry {
+  timestamp: string;
+  action: string;
+  details: Record<string, unknown>;
+}
+
+export interface ExportParams {
+  fileId: string;
+  channels?: string[];
+  filters: FilterSpec[];
+  badChannels: string[];
+  badSegments: BadSegment[];
+  history: HistoryEntry[];
+  startSec?: number;
+  endSec?: number;
+}

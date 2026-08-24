@@ -1,4 +1,4 @@
-import type { FileInfo, FilterSpec, SignalResponse } from "../types";
+import type { ExportParams, FileInfo, FilterSpec, SignalResponse } from "../types";
 
 const BASE = "/api";
 
@@ -52,4 +52,48 @@ export async function getSignal(params: GetSignalParams): Promise<SignalResponse
     signal: params.signal,
   });
   return unwrap<SignalResponse>(resp);
+}
+
+export interface ExportResult {
+  blob: Blob;
+  filename: string;
+}
+
+function filenameFromContentDisposition(header: string | null, fallback: string): string {
+  if (!header) return fallback;
+  const match = /filename="?([^"]+)"?/.exec(header);
+  return match ? match[1] : fallback;
+}
+
+export async function exportMat(params: ExportParams): Promise<ExportResult> {
+  const resp = await fetch(`${BASE}/files/${params.fileId}/export/mat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      channels: params.channels ?? null,
+      filters: params.filters,
+      bad_channels: params.badChannels,
+      bad_segments: params.badSegments.map((s) => ({
+        start_sec: s.startSec,
+        end_sec: s.endSec,
+        label: s.label ?? "",
+      })),
+      history: params.history,
+      start_sec: params.startSec ?? null,
+      end_sec: params.endSec ?? null,
+    }),
+  });
+  if (!resp.ok) {
+    let detail = resp.statusText;
+    try {
+      const body = await resp.json();
+      detail = body.detail ?? detail;
+    } catch {
+      // response wasn't JSON
+    }
+    throw new Error(detail);
+  }
+  const blob = await resp.blob();
+  const filename = filenameFromContentDisposition(resp.headers.get("Content-Disposition"), "export.mat");
+  return { blob, filename };
 }
