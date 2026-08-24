@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+backend/.pytest_cache/
+
+node_modules/
+dist/
+.DS_Store
+*.log
+
+.eeg_viewer_uploads/
+tsconfig.tsbuildinfo

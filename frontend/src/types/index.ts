@@ -1,0 +1,43 @@
+export interface ChannelInfo {
+  index: number;
+  name: string;
+  unit: string;
+  sample_rate: number;
+  n_samples: number;
+  physical_min: number;
+  physical_max: number;
+}
+
+export interface FileInfo {
+  file_id: string;
+  filename: string;
+  start_time: string | null;
+  duration_sec: number;
+  channels: ChannelInfo[];
+}
+
+// Keep in sync with backend/app/schemas.py::FilterType. Adding a new
+// filter type end-to-end means: add it here, add its default in
+// FilterPanel.tsx, and register its implementation in the backend's
+// app/filters/registry.py.
+export type FilterType = "highpass" | "lowpass" | "notch";
+
+export interface FilterSpec {
+  type: FilterType;
+  enabled: boolean;
+  freq: number;
+  order: number;
+  q: number;
+}
+
+export interface ChannelSignal {
+  name: string;
+  sample_rate: number;
+  values: number[];
+}
+
+export interface SignalResponse {
+  start_sec: number;
+  duration_sec: number;
+  channels: ChannelSignal[];
+}
