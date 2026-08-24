@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { exportMat, getSignal } from "./api/client";
+import { exportMat, getFileInfo, getSignal } from "./api/client";
 import { BadSegmentsList } from "./components/BadSegmentsList";
 import { ChannelList } from "./components/ChannelList";
 import { EegCanvas } from "./components/EegCanvas";
@@ -7,7 +7,15 @@ import { FileUpload } from "./components/FileUpload";
 import { FilterPanel } from "./components/FilterPanel";
 import { HistoryPanel } from "./components/HistoryPanel";
 import { TimeNavigator } from "./components/TimeNavigator";
-import { clearSession, hashFile, loadSession, saveSession } from "./persistence";
+import {
+  clearLastFile,
+  clearSession,
+  hashFile,
+  loadLastFile,
+  loadSession,
+  saveLastFile,
+  saveSession,
+} from "./persistence";
 import type { BadSegment, FileInfo, FilterSpec, HistoryEntry, SignalResponse } from "./types";
 
 const DEFAULT_FILTERS: FilterSpec[] = [
@@ -41,6 +49,8 @@ export default function App() {
   const [badSegments, setBadSegments] = useState<BadSegment[]>([]);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [exporting, setExporting] = useState(false);
+  const [reconnecting, setReconnecting] = useState(true);
+  const [reconnectFailedFor, setReconnectFailedFor] = useState<string | null>(null);
 
   const selectedChannels = useMemo(() => Array.from(selected), [selected]);
 
@@ -51,13 +61,11 @@ export default function App() {
     });
   }
 
-  async function handleFileLoaded(info: FileInfo, file: File) {
-    const hash = await hashFile(file);
-    setFileInfo(info);
-    setFileHash(hash);
-    setSignalData(null);
-    setError(null);
-
+  // Applies a saved annotation session for this file (channel selection,
+  // filters, bad channels/segments, gain, time window, history), or falls
+  // back to defaults if none was saved yet. Shared between opening a file
+  // by hand and auto-reconnecting to the last one on page load.
+  function applySessionOrDefaults(hash: string, info: FileInfo) {
     const saved = loadSession(hash);
     const validChannelNames = new Set(info.channels.map((c) => c.name));
     if (saved) {
@@ -85,6 +93,52 @@ export default function App() {
       setHistory([{ timestamp: new Date().toISOString(), action: "file_loaded", details: { filename: info.filename } }]);
       setRestoredAt(null);
     }
+  }
+
+  // On mount, try to reconnect to the last file that was open: the
+  // backend keeps an uploaded .edf (and its file_id) for the life of the
+  // server process, but a browser reload can't restore a <input
+  // type="file"> selection, so without this a reload would otherwise
+  // always land back on the empty "open a file" screen even though the
+  // annotation session for it is still saved.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const pointer = loadLastFile();
+      if (!pointer) {
+        setReconnecting(false);
+        return;
+      }
+      try {
+        const info = await getFileInfo(pointer.fileId);
+        if (cancelled) return;
+        setFileInfo(info);
+        setFileHash(pointer.fileHash);
+        setError(null);
+        applySessionOrDefaults(pointer.fileHash, info);
+      } catch {
+        if (cancelled) return;
+        clearLastFile();
+        setReconnectFailedFor(pointer.filename);
+      } finally {
+        if (!cancelled) setReconnecting(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleFileLoaded(info: FileInfo, file: File) {
+    const hash = await hashFile(file);
+    setFileInfo(info);
+    setFileHash(hash);
+    setSignalData(null);
+    setError(null);
+    setReconnectFailedFor(null);
+    saveLastFile({ fileId: info.file_id, fileHash: hash, filename: info.filename });
+    applySessionOrDefaults(hash, info);
   }
 
   function handleForgetSession() {
@@ -246,8 +300,21 @@ export default function App() {
         )}
       </header>
 
-      {!fileInfo && (
-        <div className="app__empty">Carica un file .edf per iniziare.</div>
+      {!fileInfo && reconnecting && (
+        <div className="app__empty">Verifica sessione precedente...</div>
+      )}
+
+      {!fileInfo && !reconnecting && (
+        <div className="app__empty">
+          Carica un file .edf per iniziare.
+          {reconnectFailedFor && (
+            <div className="app__reconnect-hint">
+              Il file "{reconnectFailedFor}" caricato in precedenza non è più disponibile sul
+              server (es. dopo un riavvio). Riaprilo per continuare: le tue annotazioni sono
+              state conservate e verranno ripristinate.
+            </div>
+          )}
+        </div>
       )}
 
       {fileInfo && restoredAt && (

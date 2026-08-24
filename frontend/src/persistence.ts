@@ -80,3 +80,46 @@ export function clearSession(fileHash: string): void {
     // ignore
   }
 }
+
+// --- Last active file ----------------------------------------------------
+// A browser reload can't re-populate a <input type="file"> selection, so
+// the annotation session above would never be shown again unless the user
+// manually re-picks the exact same file. This small pointer lets the app
+// try to reconnect to the file it already uploaded to the backend (which
+// keeps it in memory/disk for the life of the server process) on mount,
+// without requiring that manual step.
+
+const LAST_FILE_KEY = "eeg-viewer:last-file:v1";
+
+export interface LastFilePointer {
+  fileId: string;
+  fileHash: string;
+  filename: string;
+  savedAt: string;
+}
+
+export function saveLastFile(pointer: Omit<LastFilePointer, "savedAt">): void {
+  try {
+    const payload: LastFilePointer = { ...pointer, savedAt: new Date().toISOString() };
+    localStorage.setItem(LAST_FILE_KEY, JSON.stringify(payload));
+  } catch {
+    // ignore
+  }
+}
+
+export function loadLastFile(): LastFilePointer | null {
+  try {
+    const raw = localStorage.getItem(LAST_FILE_KEY);
+    return raw ? (JSON.parse(raw) as LastFilePointer) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearLastFile(): void {
+  try {
+    localStorage.removeItem(LAST_FILE_KEY);
+  } catch {
+    // ignore
+  }
+}

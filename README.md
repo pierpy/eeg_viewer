@@ -129,8 +129,16 @@ npm run build
   operazioni vengono salvati automaticamente in `localStorage` del
   browser (`frontend/src/persistence.ts`), associati a un hash del
   contenuto del file (non al `file_id` del server, che cambia ad ogni
-  upload). Riaprendo lo stesso `.edf` — anche dopo un reload della pagina
-  o su un upload successivo — la sessione viene ripristinata
-  automaticamente; un banner permette di "dimenticare" le annotazioni
-  salvate e ripartire da zero. È una persistenza puramente client-side,
-  legata al browser: non è condivisa tra dispositivi o browser diversi.
+  upload). Un secondo puntatore ricorda anche "l'ultimo file aperto"
+  (`file_id` + nome): al caricamento della pagina l'app prova a
+  riconnettersi automaticamente a quel file sul backend (che lo tiene in
+  memoria/su disco finché il processo resta attivo), così un semplice
+  reload ripristina l'intera sessione **senza dover riselezionare il
+  file** — i browser non permettono di ripopolare programmaticamente un
+  `<input type="file">`. Se il backend nel frattempo è stato riavviato
+  (il `file_id` non è più valido), viene mostrato un avviso che invita a
+  riaprire il file: le annotazioni (associate all'hash del contenuto, non
+  al `file_id`) vengono comunque ripristinate non appena lo fai. Un
+  banner permette anche di "dimenticare" le annotazioni salvate e
+  ripartire da zero. È una persistenza puramente client-side, legata al
+  browser: non è condivisa tra dispositivi o browser diversi.

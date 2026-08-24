@@ -40,6 +40,17 @@ body {
   color: #868e96;
 }
 
+.app__reconnect-hint {
+  max-width: 480px;
+  margin: 16px auto 0;
+  padding: 10px 14px;
+  background: #fff9db;
+  border: 1px solid #ffe066;
+  border-radius: 4px;
+  color: #664d03;
+  font-size: 13px;
+}
+
 .app__restored-banner {
   display: flex;
   align-items: center;
