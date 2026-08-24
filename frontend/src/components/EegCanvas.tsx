@@ -27,6 +27,10 @@ const COLORS = [
 const BAD_CHANNEL_COLOR = "#adb5bd";
 const DRAG_THRESHOLD_PX = 4;
 
+function isTimeInBadSegment(t: number, badSegments: BadSegment[]): boolean {
+  return badSegments.some((s) => t >= s.startSec && t <= s.endSec);
+}
+
 /**
  * Max absolute amplitude used to auto-scale a channel, ignoring samples
  * that fall inside a bad segment so a marked artifact doesn't dominate
@@ -50,8 +54,7 @@ function autoScaleMaxAbs(
   const denom = Math.max(values.length - 1, 1);
   values.forEach((v, idx) => {
     const t = startSec + (idx / denom) * windowSec;
-    const excluded = badSegments.some((s) => t >= s.startSec && t <= s.endSec);
-    if (excluded) return;
+    if (isTimeInBadSegment(t, badSegments)) return;
     sawIncluded = true;
     maxAbs = Math.max(maxAbs, Math.abs(v));
   });
@@ -147,14 +150,28 @@ export function EegCanvas({
           ctx.rect(0, i * rowHeight, width, rowHeight);
           ctx.clip();
 
+          // Samples inside a bad segment are left out of the path
+          // entirely (a gap) instead of being drawn under the red
+          // overlay, so a marked/excluded stretch of signal isn't shown.
           ctx.strokeStyle = isBad ? BAD_CHANNEL_COLOR : COLORS[i % COLORS.length];
           ctx.lineWidth = 1;
           ctx.beginPath();
+          const denom = Math.max(values.length - 1, 1);
+          let needsMoveTo = true;
           values.forEach((v, idx) => {
-            const x = (idx / Math.max(values.length - 1, 1)) * width;
+            const t = startSec + (idx / denom) * windowSec;
+            if (isTimeInBadSegment(t, badSegments)) {
+              needsMoveTo = true;
+              return;
+            }
+            const x = (idx / denom) * width;
             const y = centerY - v * scale;
-            if (idx === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
+            if (needsMoveTo) {
+              ctx.moveTo(x, y);
+              needsMoveTo = false;
+            } else {
+              ctx.lineTo(x, y);
+            }
           });
           ctx.stroke();
           ctx.restore();
