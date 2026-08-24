@@ -27,6 +27,41 @@ const COLORS = [
 const BAD_CHANNEL_COLOR = "#adb5bd";
 const DRAG_THRESHOLD_PX = 4;
 
+/**
+ * Max absolute amplitude used to auto-scale a channel, ignoring samples
+ * that fall inside a bad segment so a marked artifact doesn't dominate
+ * the scale and flatten the rest of the trace. Falls back to the full
+ * signal if a bad segment covers the entire visible window.
+ */
+function autoScaleMaxAbs(
+  values: number[],
+  startSec: number,
+  windowSec: number,
+  badSegments: BadSegment[]
+): number {
+  if (badSegments.length === 0) {
+    let maxAbs = 0;
+    for (const v of values) maxAbs = Math.max(maxAbs, Math.abs(v));
+    return maxAbs;
+  }
+
+  let maxAbs = 0;
+  let sawIncluded = false;
+  const denom = Math.max(values.length - 1, 1);
+  values.forEach((v, idx) => {
+    const t = startSec + (idx / denom) * windowSec;
+    const excluded = badSegments.some((s) => t >= s.startSec && t <= s.endSec);
+    if (excluded) return;
+    sawIncluded = true;
+    maxAbs = Math.max(maxAbs, Math.abs(v));
+  });
+
+  if (!sawIncluded) {
+    for (const v of values) maxAbs = Math.max(maxAbs, Math.abs(v));
+  }
+  return maxAbs;
+}
+
 export function EegCanvas({
   channels,
   gain,
@@ -102,9 +137,15 @@ export function EegCanvas({
 
         const values = ch.values;
         if (values.length > 0) {
-          let maxAbs = 0;
-          for (const v of values) maxAbs = Math.max(maxAbs, Math.abs(v));
+          const maxAbs = autoScaleMaxAbs(values, startSec, windowSec, badSegments);
           const scale = maxAbs > 0 ? ((rowHeight / 2) * 0.85 * gain) / maxAbs : 1;
+
+          // clip so a sample excluded from the scale (e.g. inside a bad
+          // segment) can't visually bleed into neighboring channel rows
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(0, i * rowHeight, width, rowHeight);
+          ctx.clip();
 
           ctx.strokeStyle = isBad ? BAD_CHANNEL_COLOR : COLORS[i % COLORS.length];
           ctx.lineWidth = 1;
@@ -116,6 +157,7 @@ export function EegCanvas({
             else ctx.lineTo(x, y);
           });
           ctx.stroke();
+          ctx.restore();
         }
 
         ctx.fillStyle = isBad ? "#c92a2a" : "#212529";
