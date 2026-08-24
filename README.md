@@ -98,9 +98,10 @@ npm run build
    lista laterale.
 8. Ogni operazione (filtri, bad channel, bad segment) viene registrata
    nel pannello "Cronologia operazioni".
-9. Clicca "Esporta .mat" per scaricare i dati (canali selezionati, intera
-   registrazione, filtri applicati) in un file MATLAB che include anche
-   bad channels, bad segments e la cronologia completa delle operazioni.
+9. Clicca "Esporta .mat" per scaricare **tutti i canali del file** (non
+   solo quelli selezionati nel visualizzatore) sull'intera registrazione,
+   con i filtri applicati, in un file MATLAB che include anche bad
+   channels, bad segments e la cronologia completa delle operazioni.
 
 ## Note tecniche
 

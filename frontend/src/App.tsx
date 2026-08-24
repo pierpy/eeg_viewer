@@ -104,7 +104,9 @@ export default function App() {
     try {
       const { blob, filename } = await exportMat({
         fileId: fileInfo.file_id,
-        channels: selectedChannels.length > 0 ? selectedChannels : undefined,
+        // Export all channels in the file, not just the ones currently
+        // shown in the viewer.
+        channels: undefined,
         filters,
         badChannels: Array.from(badChannels),
         badSegments,
@@ -174,8 +176,9 @@ export default function App() {
               className="app__export-button"
               onClick={handleExport}
               disabled={exporting}
+              title="Esporta tutti i canali del file, non solo quelli selezionati nel visualizzatore"
             >
-              {exporting ? "Esportazione..." : "Esporta .mat"}
+              {exporting ? "Esportazione..." : "Esporta .mat (tutti i canali)"}
             </button>
           </>
         )}
