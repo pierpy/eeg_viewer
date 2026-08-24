@@ -75,5 +75,6 @@ def build_export_dict(
             "start_sec": export_start_sec,
             "end_sec": export_end_sec,
             "recording_start_time": info.start_time or "",
+            "reference_mode": req.reference,
         },
     }

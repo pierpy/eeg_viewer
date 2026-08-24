@@ -45,11 +45,20 @@ class FilterSpec(BaseModel):
     q: float = Field(default=30.0, gt=0)
 
 
+# --- Reference / montage -------------------------------------------------
+# "none": as recorded. "car": subtract the average of the requested
+# channels from each of them (common average reference). "bipolar":
+# sequential (chain) derivations channel[i] - channel[i+1], producing one
+# fewer derived channel than the input — see app/montage.py.
+ReferenceMode = Literal["none", "car", "bipolar"]
+
+
 class SignalRequest(BaseModel):
     channels: list[str]
     start_sec: float = Field(ge=0)
     duration_sec: float = Field(gt=0)
     filters: list[FilterSpec] = Field(default_factory=list)
+    reference: ReferenceMode = "none"
     # Max points returned per channel; the server decimates if needed.
     max_points: Optional[int] = None
 
@@ -88,6 +97,7 @@ class ExportRequest(BaseModel):
     # None = export all channels in the file.
     channels: Optional[list[str]] = None
     filters: list[FilterSpec] = Field(default_factory=list)
+    reference: ReferenceMode = "none"
     bad_channels: list[str] = Field(default_factory=list)
     bad_segments: list[BadSegment] = Field(default_factory=list)
     history: list[HistoryEntry] = Field(default_factory=list)
@@ -100,10 +110,18 @@ class ExportRequest(BaseModel):
 
 
 class SpectrogramRequest(BaseModel):
+    # The channel to compute. When reference != "none" this may be a
+    # derived name (e.g. "EEG1-EEG2" for bipolar) that must appear once
+    # `reference` is applied to `montage_channels`.
     channel: str
     start_sec: float = Field(ge=0)
     duration_sec: float = Field(gt=0)
     filters: list[FilterSpec] = Field(default_factory=list)
+    reference: ReferenceMode = "none"
+    # Required when reference != "none": the raw channel set (and order)
+    # the reference/montage is computed over — normally the same channels
+    # currently shown in the main viewer.
+    montage_channels: list[str] = Field(default_factory=list)
     # Frequencies above this are dropped from the response; EEG-relevant
     # activity lives well under Nyquist, and clipping keeps both the
     # payload and the color scale focused. None = up to Nyquist.

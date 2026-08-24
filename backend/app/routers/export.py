@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Response
 from app.edf_store import ChannelNotFoundError, EdfNotFoundError, store
 from app.filters import apply_filter_pipeline
 from app.mat_export import build_export_dict
+from app.montage import apply_reference
 from app.schemas import ExportRequest
 
 router = APIRouter(prefix="/api/files", tags=["export"])
@@ -37,16 +38,36 @@ async def export_mat(file_id: str, req: ExportRequest) -> Response:
     except ChannelNotFoundError as exc:
         raise HTTPException(status_code=404, detail=f"Unknown channel: {exc}")
 
-    signals: dict[str, tuple] = {}
-    for name in channel_names:
-        raw, sr = windows[name]
+    if req.reference == "none":
+        referenced = {name: windows[name][0] for name in channel_names}
+        rate_by_name = {name: windows[name][1] for name in channel_names}
+        ordered_names = channel_names
+    else:
+        rates = {sr for _, sr in windows.values()}
+        if len(rates) > 1:
+            raise HTTPException(
+                status_code=400,
+                detail="Il riferimento/montaggio richiede canali con la stessa frequenza di campionamento",
+            )
+        sample_rate = rates.pop()
+        raw_signals = {name: arr for name, (arr, _) in windows.items()}
         try:
-            filtered = apply_filter_pipeline(raw, sr, req.filters)
+            referenced = apply_reference(raw_signals, channel_names, req.reference)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        rate_by_name = {name: sample_rate for name in referenced}
+        ordered_names = list(referenced.keys())
+
+    signals: dict[str, tuple] = {}
+    for name in ordered_names:
+        sr = rate_by_name[name]
+        try:
+            filtered = apply_filter_pipeline(referenced[name], sr, req.filters)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
         signals[name] = (filtered, sr)
 
-    mat_dict = build_export_dict(info, req, channel_names, signals, start, end)
+    mat_dict = build_export_dict(info, req, ordered_names, signals, start, end)
 
     buf = io.BytesIO()
     sio.savemat(buf, mat_dict, do_compression=True)

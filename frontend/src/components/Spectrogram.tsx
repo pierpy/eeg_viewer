@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getSpectrogram } from "../api/client";
-import type { FilterSpec, SpectrogramResponse } from "../types";
+import type { FilterSpec, ReferenceMode, SpectrogramResponse } from "../types";
 
 interface Props {
   fileId: string;
@@ -8,7 +8,24 @@ interface Props {
   startSec: number;
   windowSec: number;
   filters: FilterSpec[];
+  reference: ReferenceMode;
+  montageChannels: string[];
   onClose: () => void;
+}
+
+/**
+ * Resolves which channel to actually request from the backend. The SPEC
+ * toggle always names a raw channel; under a bipolar montage there's no
+ * single-channel spectrogram for it, so we fall back to the chain pair it
+ * takes part in (preferring it as the first element, i.e. "raw-next").
+ */
+function resolveChannel(raw: string, reference: ReferenceMode, montageChannels: string[]): string {
+  if (reference !== "bipolar") return raw;
+  const idx = montageChannels.indexOf(raw);
+  if (idx === -1) return raw;
+  if (idx < montageChannels.length - 1) return `${montageChannels[idx]}-${montageChannels[idx + 1]}`;
+  if (idx > 0) return `${montageChannels[idx - 1]}-${montageChannels[idx]}`;
+  return raw;
 }
 
 const DEBOUNCE_MS = 250;
@@ -67,7 +84,16 @@ function niceTicks(min: number, max: number, count: number): number[] {
   return ticks;
 }
 
-export function Spectrogram({ fileId, channel, startSec, windowSec, filters, onClose }: Props) {
+export function Spectrogram({
+  fileId,
+  channel,
+  startSec,
+  windowSec,
+  filters,
+  reference,
+  montageChannels,
+  onClose,
+}: Props) {
   const [data, setData] = useState<SpectrogramResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -75,6 +101,8 @@ export function Spectrogram({ fileId, channel, startSec, windowSec, filters, onC
 
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const resolvedChannel = resolveChannel(channel, reference, montageChannels);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -84,10 +112,12 @@ export function Spectrogram({ fileId, channel, startSec, windowSec, filters, onC
       try {
         const resp = await getSpectrogram({
           fileId,
-          channel,
+          channel: resolvedChannel,
           startSec,
           durationSec: windowSec,
           filters,
+          reference,
+          montageChannels,
           signal: controller.signal,
         });
         setData(resp);
@@ -102,7 +132,8 @@ export function Spectrogram({ fileId, channel, startSec, windowSec, filters, onC
       clearTimeout(timer);
       controller.abort();
     };
-  }, [fileId, channel, startSec, windowSec, JSON.stringify(filters)]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fileId, resolvedChannel, startSec, windowSec, JSON.stringify(filters), reference, montageChannels.join(",")]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -233,7 +264,12 @@ export function Spectrogram({ fileId, channel, startSec, windowSec, filters, onC
   return (
     <div className="spectrogram">
       <div className="spectrogram__header">
-        <span>Spettrogramma — {channel}</span>
+        <span>
+          Spettrogramma — {resolvedChannel}
+          {resolvedChannel !== channel && (
+            <span className="spectrogram__resolved-hint"> (bipolare da {channel})</span>
+          )}
+        </span>
         {loading && <span className="spectrogram__status">Aggiornamento...</span>}
         <button type="button" className="spectrogram__close" onClick={onClose} title="Chiudi spettrogramma">
           ×

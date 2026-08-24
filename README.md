@@ -2,10 +2,11 @@
 
 Web app per visualizzare tracciati EEG da file `.edf`: caricamento file,
 selezione dinamica dei canali, filtri di visualizzazione (passa-alto,
-passa-basso, notch), navigazione temporale su un grafico multicanale,
-marcatura di bad channel e bad segment, spettrogramma per canale ed
-export dei dati in formato MATLAB (`.mat`) con tracciamento completo
-delle operazioni di pre-processing effettuate.
+passa-basso, notch), montaggio/riferimento (media comune, bipolare),
+navigazione temporale su un grafico multicanale, marcatura di bad
+channel e bad segment, spettrogramma per canale ed export dei dati in
+formato MATLAB (`.mat`) con tracciamento completo delle operazioni di
+pre-processing effettuate.
 
 ## Architettura
 
@@ -112,6 +113,11 @@ npm run build
     (tempo-frequenza) sotto il tracciato principale; segue la stessa
     finestra temporale e gli stessi filtri della vista corrente. Un solo
     canale alla volta; clicca di nuovo (o la ×) per chiuderlo.
+12. Cambia "Montaggio / riferimento" per applicare la media comune (CAR)
+    o un montaggio bipolare sequenziale (ch1-ch2, ch2-ch3, ...) ai canali
+    selezionati; il tracciato, lo spettrogramma e l'export si aggiornano
+    di conseguenza. La marcatura BAD resta sui canali originali (un
+    canale derivato appare bad se lo è uno dei due canali sorgente).
 
 ## Note tecniche
 
@@ -159,3 +165,18 @@ npm run build
   di bin di frequenza anche su finestre di 60s), non ne ha bisogno. La
   color scale è la rampa sequenziale blu validata dalla skill `dataviz`
   (100→700, `frontend/src/components/Spectrogram.tsx`).
+- Il montaggio/riferimento (`backend/app/montage.py`) è applicato **prima**
+  della pipeline di filtri (raw → riferimento → filtri → display/export),
+  come da convenzione EEG standard, ed è condiviso da `/signal`,
+  `/spectrogram` ed `/export/mat`. "Media comune (CAR)" sottrae la media
+  dei canali richiesti da ciascuno di essi; "Bipolare" calcola derivazioni
+  in catena (`ch[i] - ch[i+1]`), producendo un canale in meno rispetto ai
+  canali in ingresso, con nome `"A-B"`. Entrambe richiedono che tutti i
+  canali coinvolti abbiano la stessa frequenza di campionamento (altrimenti
+  l'API risponde 400 con un messaggio esplicativo). La marcatura bad
+  channel resta sui canali originali; nella vista un canale derivato
+  appare "bad" se lo è uno dei due canali sorgente
+  (`frontend/src/components/EegCanvas.tsx`, `isChannelBad`). Lo
+  spettrogramma di un canale in montaggio bipolare risolve automaticamente
+  la coppia della catena a cui appartiene il canale cliccato
+  (`frontend/src/components/Spectrogram.tsx`, `resolveChannel`).

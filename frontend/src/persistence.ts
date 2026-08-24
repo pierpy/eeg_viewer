@@ -7,7 +7,7 @@
  * after a page reload or a re-upload, recovers the same session.
  */
 
-import type { BadSegment, FilterSpec, HistoryEntry } from "./types";
+import type { BadSegment, FilterSpec, HistoryEntry, ReferenceMode } from "./types";
 
 const STORAGE_PREFIX = "eeg-viewer:session:v1:";
 const SESSION_VERSION = 1;
@@ -17,6 +17,9 @@ export interface PersistedSession {
   savedAt: string;
   selectedChannels: string[];
   filters: FilterSpec[];
+  // Optional: sessions saved before montage support was added won't have
+  // this field; callers should fall back to "none".
+  reference?: ReferenceMode;
   badChannels: string[];
   badSegments: BadSegment[];
   history: HistoryEntry[];

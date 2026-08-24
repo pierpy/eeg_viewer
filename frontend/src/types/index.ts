@@ -30,6 +30,9 @@ export interface FilterSpec {
   q: number;
 }
 
+// Keep in sync with backend/app/schemas.py::ReferenceMode.
+export type ReferenceMode = "none" | "car" | "bipolar";
+
 export interface ChannelSignal {
   name: string;
   sample_rate: number;
@@ -61,6 +64,7 @@ export interface ExportParams {
   fileId: string;
   channels?: string[];
   filters: FilterSpec[];
+  reference?: ReferenceMode;
   badChannels: string[];
   badSegments: BadSegment[];
   history: HistoryEntry[];

@@ -297,6 +297,30 @@ body {
   gap: 4px;
 }
 
+.reference-panel {
+  margin-bottom: 20px;
+}
+
+.reference-panel label {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 4px;
+}
+
+.reference-panel select {
+  font-weight: 400;
+  padding: 4px 6px;
+}
+
+.reference-panel__hint {
+  margin: 4px 0 0 0;
+  font-size: 11px;
+  color: #868e96;
+  font-weight: 400;
+}
+
 .time-navigator {
   display: flex;
   align-items: center;
@@ -370,6 +394,12 @@ body {
   font-weight: 400;
   color: #868e96;
   font-size: 12px;
+}
+
+.spectrogram__resolved-hint {
+  font-weight: 400;
+  color: #868e96;
+  font-size: 11px;
 }
 
 .spectrogram__close {

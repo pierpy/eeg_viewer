@@ -32,6 +32,19 @@ function isTimeInBadSegment(t: number, badSegments: BadSegment[]): boolean {
 }
 
 /**
+ * A plotted channel is "bad" if it's directly marked, or — for a
+ * montage-derived name like "EEG1-EEG2" (bipolar reference) — if either
+ * of its two source (raw) channels is marked. badChannels always holds
+ * raw channel names, since marking is done from the raw channel list.
+ */
+function isChannelBad(name: string, badChannels: Set<string>): boolean {
+  if (badChannels.has(name)) return true;
+  const dash = name.indexOf("-");
+  if (dash <= 0) return false;
+  return badChannels.has(name.slice(0, dash)) || badChannels.has(name.slice(dash + 1));
+}
+
+/**
  * Max absolute amplitude used to auto-scale a channel, ignoring samples
  * that fall inside a bad segment so a marked artifact doesn't dominate
  * the scale and flatten the rest of the trace. Falls back to the full
@@ -118,7 +131,7 @@ export function EegCanvas({
       ctx.fillRect(0, 0, width, height);
 
       channels.forEach((ch, i) => {
-        const isBad = badChannels.has(ch.name);
+        const isBad = isChannelBad(ch.name, badChannels);
         const centerY = i * rowHeight + rowHeight / 2;
 
         if (isBad) {

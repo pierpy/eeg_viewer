@@ -53,3 +53,37 @@ def synthetic_edf_path(tmp_path: Path) -> Path:
 @pytest.fixture()
 def synthetic_edf_bytes(synthetic_edf_path: Path) -> bytes:
     return synthetic_edf_path.read_bytes()
+
+
+def _write_mixed_rate_edf(path: Path, duration_sec: int = 10) -> None:
+    rates = [256, 128]
+    writer = pyedflib.EdfWriter(str(path), len(rates), file_type=pyedflib.FILETYPE_EDFPLUS)
+    headers = []
+    signals = []
+    for i, sr in enumerate(rates):
+        n_samples = sr * duration_sec
+        t = np.arange(n_samples) / sr
+        headers.append(
+            {
+                "label": f"EEG{i + 1}",
+                "dimension": "uV",
+                "sample_frequency": sr,
+                "physical_max": 500,
+                "physical_min": -500,
+                "digital_max": 32767,
+                "digital_min": -32768,
+                "transducer": "",
+                "prefilter": "",
+            }
+        )
+        signals.append(10 * np.sin(2 * np.pi * 10 * t))
+    writer.setSignalHeaders(headers)
+    writer.writeSamples(signals)
+    writer.close()
+
+
+@pytest.fixture()
+def mixed_rate_edf_bytes(tmp_path: Path) -> bytes:
+    path = tmp_path / "mixed_rate.edf"
+    _write_mixed_rate_edf(path)
+    return path.read_bytes()

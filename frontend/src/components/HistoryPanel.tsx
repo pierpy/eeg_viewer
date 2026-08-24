@@ -13,6 +13,7 @@ const ACTION_LABELS: Record<string, string> = {
   segment_removed: "Segmento rimosso",
   session_restored: "Sessione ripristinata da annotazioni salvate",
   session_forgotten: "Annotazioni salvate cancellate",
+  reference_changed: "Montaggio/riferimento cambiato",
 };
 
 function describe(entry: HistoryEntry): string {

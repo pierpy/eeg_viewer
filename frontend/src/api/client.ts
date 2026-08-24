@@ -1,4 +1,4 @@
-import type { ExportParams, FileInfo, FilterSpec, SignalResponse, SpectrogramResponse } from "../types";
+import type { ExportParams, FileInfo, FilterSpec, ReferenceMode, SignalResponse, SpectrogramResponse } from "../types";
 
 const BASE = "/api";
 
@@ -34,6 +34,7 @@ export interface GetSignalParams {
   startSec: number;
   durationSec: number;
   filters: FilterSpec[];
+  reference?: ReferenceMode;
   maxPoints?: number;
   signal?: AbortSignal;
 }
@@ -47,6 +48,7 @@ export async function getSignal(params: GetSignalParams): Promise<SignalResponse
       start_sec: params.startSec,
       duration_sec: params.durationSec,
       filters: params.filters,
+      reference: params.reference ?? "none",
       max_points: params.maxPoints,
     }),
     signal: params.signal,
@@ -72,6 +74,7 @@ export async function exportMat(params: ExportParams): Promise<ExportResult> {
     body: JSON.stringify({
       channels: params.channels ?? null,
       filters: params.filters,
+      reference: params.reference ?? "none",
       bad_channels: params.badChannels,
       bad_segments: params.badSegments.map((s) => ({
         start_sec: s.startSec,
@@ -104,6 +107,8 @@ export interface GetSpectrogramParams {
   startSec: number;
   durationSec: number;
   filters: FilterSpec[];
+  reference?: ReferenceMode;
+  montageChannels?: string[];
   maxFreq?: number;
   signal?: AbortSignal;
 }
@@ -117,6 +122,8 @@ export async function getSpectrogram(params: GetSpectrogramParams): Promise<Spec
       start_sec: params.startSec,
       duration_sec: params.durationSec,
       filters: params.filters,
+      reference: params.reference ?? "none",
+      montage_channels: params.montageChannels ?? [],
       max_freq: params.maxFreq,
     }),
     signal: params.signal,

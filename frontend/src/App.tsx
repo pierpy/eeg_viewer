@@ -6,6 +6,7 @@ import { EegCanvas } from "./components/EegCanvas";
 import { FileUpload } from "./components/FileUpload";
 import { FilterPanel } from "./components/FilterPanel";
 import { HistoryPanel } from "./components/HistoryPanel";
+import { ReferencePanel } from "./components/ReferencePanel";
 import { Spectrogram } from "./components/Spectrogram";
 import { TimeNavigator } from "./components/TimeNavigator";
 import {
@@ -17,7 +18,7 @@ import {
   saveLastFile,
   saveSession,
 } from "./persistence";
-import type { BadSegment, FileInfo, FilterSpec, HistoryEntry, SignalResponse } from "./types";
+import type { BadSegment, FileInfo, FilterSpec, HistoryEntry, ReferenceMode, SignalResponse } from "./types";
 
 const DEFAULT_FILTERS: FilterSpec[] = [
   { type: "highpass", enabled: true, freq: 0.5, order: 4, q: 30 },
@@ -39,6 +40,7 @@ export default function App() {
   const [restoredAt, setRestoredAt] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState<FilterSpec[]>(DEFAULT_FILTERS);
+  const [reference, setReference] = useState<ReferenceMode>("none");
   const [startSec, setStartSec] = useState(0);
   const [windowSec, setWindowSec] = useState(10);
   const [gain, setGain] = useState(1);
@@ -75,6 +77,7 @@ export default function App() {
       const restoredSelection = saved.selectedChannels.filter((name) => validChannelNames.has(name));
       setSelected(new Set(restoredSelection.length > 0 ? restoredSelection : Array.from(validChannelNames).slice(0, 8)));
       setFilters(saved.filters.length > 0 ? saved.filters : DEFAULT_FILTERS);
+      setReference(saved.reference || "none");
       setBadChannels(new Set(saved.badChannels.filter((name) => validChannelNames.has(name))));
       setBadSegments(saved.badSegments);
       setGain(saved.gain || 1);
@@ -88,6 +91,7 @@ export default function App() {
     } else {
       setSelected(new Set(info.channels.slice(0, Math.min(8, info.channels.length)).map((c) => c.name)));
       setFilters(DEFAULT_FILTERS);
+      setReference("none");
       setBadChannels(new Set());
       setBadSegments([]);
       setStartSec(0);
@@ -150,11 +154,18 @@ export default function App() {
     setBadChannels(new Set());
     setBadSegments([]);
     setFilters(DEFAULT_FILTERS);
+    setReference("none");
     setGain(1);
     setRestoredAt(null);
     setHistory([
       { timestamp: new Date().toISOString(), action: "session_forgotten", details: { filename: fileInfo.filename } },
     ]);
+  }
+
+  function handleReferenceChange(mode: ReferenceMode) {
+    if (mode === reference) return;
+    setReference(mode);
+    appendHistory("reference_changed", { reference: mode });
   }
 
   function toggleSpectrogram(name: string) {
@@ -214,6 +225,7 @@ export default function App() {
         // shown in the viewer.
         channels: undefined,
         filters,
+        reference,
         badChannels: Array.from(badChannels),
         badSegments,
         history,
@@ -249,6 +261,7 @@ export default function App() {
           startSec,
           durationSec: windowSec,
           filters,
+          reference,
           signal: controller.signal,
         });
         setSignalData(data);
@@ -265,7 +278,7 @@ export default function App() {
       controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileInfo, selectedChannels.join(","), startSec, windowSec, JSON.stringify(filters)]);
+  }, [fileInfo, selectedChannels.join(","), startSec, windowSec, JSON.stringify(filters), reference]);
 
   // Persist the current annotation/view state for this file whenever it
   // changes, so reopening the same .edf later (even after a reload)
@@ -275,6 +288,7 @@ export default function App() {
     saveSession(fileHash, {
       selectedChannels,
       filters,
+      reference,
       badChannels: Array.from(badChannels),
       badSegments,
       history,
@@ -282,7 +296,7 @@ export default function App() {
       startSec,
       windowSec,
     });
-  }, [fileHash, selectedChannels, filters, badChannels, badSegments, history, gain, startSec, windowSec]);
+  }, [fileHash, selectedChannels, filters, reference, badChannels, badSegments, history, gain, startSec, windowSec]);
 
   return (
     <div className="app">
@@ -346,6 +360,7 @@ export default function App() {
               onToggleSpectrogram={toggleSpectrogram}
             />
             <FilterPanel filters={filters} onChange={handleFiltersChange} />
+            <ReferencePanel reference={reference} onChange={handleReferenceChange} />
             <div className="gain-control">
               <label>
                 Guadagno ({gain.toFixed(2)}x)
@@ -394,6 +409,8 @@ export default function App() {
                 startSec={startSec}
                 windowSec={windowSec}
                 filters={filters}
+                reference={reference}
+                montageChannels={selectedChannels}
                 onClose={() => setSpectrogramChannel(null)}
               />
             )}
