@@ -18,6 +18,7 @@ import {
   saveLastFile,
   saveSession,
 } from "./persistence";
+import { useTheme } from "./theme";
 import type { BadSegment, FileInfo, FilterSpec, HistoryEntry, ReferenceMode, SignalResponse } from "./types";
 
 const DEFAULT_FILTERS: FilterSpec[] = [
@@ -35,6 +36,7 @@ function newId(): string {
 }
 
 export default function App() {
+  const [theme, toggleTheme] = useTheme();
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null);
   const [fileHash, setFileHash] = useState<string | null>(null);
   const [restoredAt, setRestoredAt] = useState<string | null>(null);
@@ -303,22 +305,32 @@ export default function App() {
       <header className="app__header">
         <h1>EEG Viewer</h1>
         <FileUpload onLoaded={handleFileLoaded} />
-        {fileInfo && (
-          <>
-            <span className="app__filename">
-              {fileInfo.filename} · {fileInfo.channels.length} canali · {fileInfo.duration_sec.toFixed(1)}s
-            </span>
-            <button
-              type="button"
-              className="app__export-button"
-              onClick={handleExport}
-              disabled={exporting}
-              title="Esporta tutti i canali del file, non solo quelli selezionati nel visualizzatore"
-            >
-              {exporting ? "Esportazione..." : "Esporta .mat (tutti i canali)"}
-            </button>
-          </>
-        )}
+        <div className="app__header-right">
+          {fileInfo && (
+            <>
+              <span className="app__filename">
+                {fileInfo.filename} · {fileInfo.channels.length} canali · {fileInfo.duration_sec.toFixed(1)}s
+              </span>
+              <button
+                type="button"
+                className="app__export-button"
+                onClick={handleExport}
+                disabled={exporting}
+                title="Esporta tutti i canali del file, non solo quelli selezionati nel visualizzatore"
+              >
+                {exporting ? "Esportazione..." : "Esporta .mat (tutti i canali)"}
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            className="app__theme-toggle"
+            onClick={toggleTheme}
+            title={theme === "dark" ? "Passa al tema chiaro" : "Passa al tema scuro"}
+          >
+            {theme === "dark" ? "☀️" : "🌙"}
+          </button>
+        </div>
       </header>
 
       {!fileInfo && reconnecting && (
@@ -396,6 +408,7 @@ export default function App() {
                 badSegments={badSegments}
                 startSec={startSec}
                 windowSec={windowSec}
+                theme={theme}
                 onCreateSegment={addBadSegment}
                 onRemoveSegment={removeBadSegment}
               />
@@ -411,6 +424,7 @@ export default function App() {
                 filters={filters}
                 reference={reference}
                 montageChannels={selectedChannels}
+                theme={theme}
                 onClose={() => setSpectrogramChannel(null)}
               />
             )}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { CANVAS_COLORS, TRACE_COLORS, type Theme } from "../theme";
 import type { BadSegment, ChannelSignal } from "../types";
 
 interface Props {
@@ -8,24 +9,14 @@ interface Props {
   badSegments: BadSegment[];
   startSec: number;
   windowSec: number;
+  theme: Theme;
   onCreateSegment: (startSec: number, endSec: number) => void;
   onRemoveSegment: (id: string) => void;
   rowHeight?: number;
 }
 
-const COLORS = [
-  "#2b8a3e",
-  "#1971c2",
-  "#e8590c",
-  "#9c36b5",
-  "#0c8599",
-  "#c92a2a",
-  "#5f3dc4",
-  "#495057",
-];
-
-const BAD_CHANNEL_COLOR = "#adb5bd";
 const DRAG_THRESHOLD_PX = 4;
+const FONT_STACK = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
 function isTimeInBadSegment(t: number, badSegments: BadSegment[]): boolean {
   return badSegments.some((s) => t >= s.startSec && t <= s.endSec);
@@ -85,6 +76,7 @@ export function EegCanvas({
   badSegments,
   startSec,
   windowSec,
+  theme,
   onCreateSegment,
   onRemoveSegment,
   rowHeight = 70,
@@ -123,11 +115,14 @@ export function EegCanvas({
       canvas2.style.width = `${width}px`;
       canvas2.style.height = `${height}px`;
 
+      const colors = CANVAS_COLORS[theme];
+      const traceColors = TRACE_COLORS[theme];
+
       const ctx = canvas2.getContext("2d");
       if (!ctx) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = colors.background;
       ctx.fillRect(0, 0, width, height);
 
       channels.forEach((ch, i) => {
@@ -135,17 +130,17 @@ export function EegCanvas({
         const centerY = i * rowHeight + rowHeight / 2;
 
         if (isBad) {
-          ctx.fillStyle = "rgba(201, 42, 42, 0.06)";
+          ctx.fillStyle = colors.badRowTint;
           ctx.fillRect(0, i * rowHeight, width, rowHeight);
         }
 
-        ctx.strokeStyle = "#e9ecef";
+        ctx.strokeStyle = colors.gridStrong;
         ctx.beginPath();
         ctx.moveTo(0, i * rowHeight);
         ctx.lineTo(width, i * rowHeight);
         ctx.stroke();
 
-        ctx.strokeStyle = "#f1f3f5";
+        ctx.strokeStyle = colors.gridWeak;
         ctx.beginPath();
         ctx.moveTo(0, centerY);
         ctx.lineTo(width, centerY);
@@ -166,7 +161,7 @@ export function EegCanvas({
           // Samples inside a bad segment are left out of the path
           // entirely (a gap) instead of being drawn under the red
           // overlay, so a marked/excluded stretch of signal isn't shown.
-          ctx.strokeStyle = isBad ? BAD_CHANNEL_COLOR : COLORS[i % COLORS.length];
+          ctx.strokeStyle = isBad ? colors.badTrace : traceColors[i % traceColors.length];
           ctx.lineWidth = 1;
           ctx.beginPath();
           const denom = Math.max(values.length - 1, 1);
@@ -190,8 +185,8 @@ export function EegCanvas({
           ctx.restore();
         }
 
-        ctx.fillStyle = isBad ? "#c92a2a" : "#212529";
-        ctx.font = "12px sans-serif";
+        ctx.fillStyle = isBad ? colors.badLabel : colors.text;
+        ctx.font = "12px " + FONT_STACK;
         ctx.fillText(isBad ? `${ch.name} (BAD)` : ch.name, 6, i * rowHeight + 14);
       });
 
@@ -203,9 +198,9 @@ export function EegCanvas({
         if (overlapEnd <= overlapStart) return;
         const x0 = xAtTime(overlapStart, width);
         const x1 = xAtTime(overlapEnd, width);
-        ctx.fillStyle = "rgba(201, 42, 42, 0.15)";
+        ctx.fillStyle = colors.badSegmentFill;
         ctx.fillRect(x0, 0, x1 - x0, height);
-        ctx.strokeStyle = "rgba(201, 42, 42, 0.5)";
+        ctx.strokeStyle = colors.badSegmentStroke;
         ctx.beginPath();
         ctx.moveTo(x0, 0);
         ctx.lineTo(x0, height);
@@ -219,7 +214,7 @@ export function EegCanvas({
     const observer = new ResizeObserver(draw);
     observer.observe(container);
     return () => observer.disconnect();
-  }, [channels, gain, rowHeight, badChannels, badSegments, startSec, windowSec, xAtTime]);
+  }, [channels, gain, rowHeight, badChannels, badSegments, startSec, windowSec, xAtTime, theme]);
 
   function findSegmentAtTime(t: number): BadSegment | undefined {
     return badSegments.find((s) => t >= s.startSec && t <= s.endSec);

@@ -118,6 +118,9 @@ npm run build
     selezionati; il tracciato, lo spettrogramma e l'export si aggiornano
     di conseguenza. La marcatura BAD resta sui canali originali (un
     canale derivato appare bad se lo è uno dei due canali sorgente).
+13. L'icona 🌙/☀️ in alto a destra alterna tema chiaro/scuro; la scelta
+    viene ricordata e, se non l'hai mai cambiata esplicitamente, segue
+    automaticamente il tema del sistema operativo.
 
 ## Note tecniche
 
@@ -180,3 +183,12 @@ npm run build
   spettrogramma di un canale in montaggio bipolare risolve automaticamente
   la coppia della catena a cui appartiene il canale cliccato
   (`frontend/src/components/Spectrogram.tsx`, `resolveChannel`).
+- L'aspetto grafico usa design token CSS (`frontend/src/styles.css`, custom
+  properties su `:root`) con varianti chiaro/scuro; `frontend/src/theme.ts`
+  gestisce il tema (hook `useTheme`, persistenza in `localStorage`,
+  sincronizzazione con la preferenza di sistema se l'utente non ha mai
+  scelto esplicitamente) ed espone gli stessi colori come costanti JS
+  (`CANVAS_COLORS`, `TRACE_COLORS`) per i canvas di `EegCanvas.tsx` e
+  `Spectrogram.tsx`, che non possono leggere le CSS custom properties.
+  I colori dei tracciati usano la palette categorica validata dalla skill
+  `dataviz` (ordine fisso, CVD-safe) invece di colori scelti a caso.

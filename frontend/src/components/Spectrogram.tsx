@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getSpectrogram } from "../api/client";
+import { CANVAS_COLORS, type Theme } from "../theme";
 import type { FilterSpec, ReferenceMode, SpectrogramResponse } from "../types";
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
   filters: FilterSpec[];
   reference: ReferenceMode;
   montageChannels: string[];
+  theme: Theme;
   onClose: () => void;
 }
 
@@ -92,6 +94,7 @@ export function Spectrogram({
   filters,
   reference,
   montageChannels,
+  theme,
   onClose,
 }: Props) {
   const [data, setData] = useState<SpectrogramResponse | null>(null);
@@ -153,11 +156,13 @@ export function Spectrogram({
       canvas2.style.width = `${width}px`;
       canvas2.style.height = `${height}px`;
 
+      const colors = CANVAS_COLORS[theme];
+
       const ctx = canvas2.getContext("2d");
       if (!ctx) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = colors.background;
       ctx.fillRect(0, 0, width, height);
 
       const plotW = width - MARGIN.left - MARGIN.right;
@@ -184,8 +189,8 @@ export function Spectrogram({
       }
 
       // axes
-      ctx.strokeStyle = "#495057";
-      ctx.fillStyle = "#495057";
+      ctx.strokeStyle = colors.mutedText;
+      ctx.fillStyle = colors.mutedText;
       ctx.font = "11px sans-serif";
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
@@ -193,7 +198,7 @@ export function Spectrogram({
       for (const tick of niceTicks(0, maxFreq, 5)) {
         const y = MARGIN.top + plotH - (tick / maxFreq) * plotH;
         ctx.fillText(`${tick}`, MARGIN.left - 6, y);
-        ctx.strokeStyle = "#f1f3f5";
+        ctx.strokeStyle = colors.gridWeak;
         ctx.beginPath();
         ctx.moveTo(MARGIN.left, y);
         ctx.lineTo(MARGIN.left + plotW, y);
@@ -203,11 +208,13 @@ export function Spectrogram({
       ctx.translate(12, MARGIN.top + plotH / 2);
       ctx.rotate(-Math.PI / 2);
       ctx.textAlign = "center";
+      ctx.fillStyle = colors.mutedText;
       ctx.fillText("Hz", 0, 0);
       ctx.restore();
 
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
+      ctx.fillStyle = colors.mutedText;
       const tMin = times[0];
       const tMax = times[times.length - 1];
       for (const tick of niceTicks(tMin, tMax, 5)) {
@@ -223,17 +230,18 @@ export function Spectrogram({
         ctx.fillStyle = seqColor(t);
         ctx.fillRect(barX, MARGIN.top + py, barW, 1);
       }
-      ctx.strokeStyle = "#adb5bd";
+      ctx.strokeStyle = colors.gridStrong;
       ctx.strokeRect(barX, MARGIN.top, barW, plotH);
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = "#495057";
+      ctx.fillStyle = colors.mutedText;
       ctx.fillText(`${maxDb.toFixed(0)}`, barX + barW + 4, MARGIN.top + 4);
       ctx.fillText(`${minDb.toFixed(0)}`, barX + barW + 4, MARGIN.top + plotH - 4);
       ctx.save();
       ctx.translate(width - 10, MARGIN.top + plotH / 2);
       ctx.rotate(-Math.PI / 2);
       ctx.textAlign = "center";
+      ctx.fillStyle = colors.mutedText;
       ctx.fillText("dB", 0, 0);
       ctx.restore();
     }
@@ -242,7 +250,7 @@ export function Spectrogram({
     const observer = new ResizeObserver(draw);
     observer.observe(container);
     return () => observer.disconnect();
-  }, [data]);
+  }, [data, theme]);
 
   function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
     if (!data) return;

@@ -4,6 +4,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EEG Viewer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      // Applied before first paint to avoid a flash of the wrong theme;
+      // theme.ts keeps this in sync afterwards (localStorage + OS changes).
+      (function () {
+        try {
+          var stored = localStorage.getItem("eeg-viewer:theme");
+          var theme =
+            stored === "light" || stored === "dark"
+              ? stored
+              : window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (e) {
+          // localStorage/matchMedia unavailable; CSS falls back to the light default
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
