@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 from fastapi import APIRouter, HTTPException
 
 from app.edf_store import ChannelNotFoundError, EdfNotFoundError, store
@@ -68,7 +69,10 @@ async def get_spectrogram(file_id: str, req: SpectrogramRequest) -> SpectrogramR
         channel=req.channel,
         start_sec=req.start_sec,
         duration_sec=req.duration_sec,
-        freqs=freqs.tolist(),
-        times=(times + req.start_sec).tolist(),
-        power_db=power_db.tolist(),
+        freqs=np.round(freqs, 3).tolist(),
+        times=np.round(times + req.start_sec, 3).tolist(),
+        # power_db is a full freq x time grid rendered as a heatmap; 0.1 dB
+        # is well below perceptible color-ramp resolution, so rounding it
+        # shrinks the payload without any visible change.
+        power_db=np.round(power_db, 1).tolist(),
     )

@@ -81,8 +81,13 @@ async def get_signal(file_id: str, req: SignalRequest) -> SignalResponse:
             raise HTTPException(status_code=400, detail=str(exc))
         decimated = _decimate(filtered, max_points)
         effective_sr = sr * (len(decimated) / len(filtered)) if len(filtered) else sr
+        # Rounding trims the JSON payload a lot (raw float64 repr runs to
+        # ~17 digits) with no visible effect — display/export precision
+        # needs nowhere near that, and this only affects the wire format.
         channels.append(
-            ChannelSignal(name=name, sample_rate=effective_sr, values=decimated.tolist())
+            ChannelSignal(
+                name=name, sample_rate=effective_sr, values=np.round(decimated, 3).tolist()
+            )
         )
 
     return SignalResponse(start_sec=req.start_sec, duration_sec=req.duration_sec, channels=channels)

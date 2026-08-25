@@ -46,7 +46,9 @@ def test_signal_car_reference_spans_all_channels_ignoring_selection(synthetic_ed
     # ...but the reference/output always covers every channel in the file.
     assert {c["name"] for c in channels} == {"EEG1", "EEG2", "EEG3", "EEG4"}
     total = np.sum([c["values"] for c in channels], axis=0)
-    assert np.allclose(total, 0, atol=1e-6)
+    # /signal rounds values to 3 decimals on the wire, so the sum is only
+    # zero up to that rounding error, not float precision.
+    assert np.allclose(total, 0, atol=2e-3)
 
 
 def test_signal_car_reference_excludes_bad_channels(synthetic_edf_bytes: bytes):
@@ -67,8 +69,9 @@ def test_signal_car_reference_excludes_bad_channels(synthetic_edf_bytes: bytes):
     names = {c["name"] for c in channels}
     assert names == {"EEG1", "EEG2", "EEG4"}
     # CAR over the 3 remaining good channels sums to ~0, not over all 4.
+    # (Allowing for the /signal endpoint's 3-decimal wire rounding.)
     total = np.sum([c["values"] for c in channels], axis=0)
-    assert np.allclose(total, 0, atol=1e-6)
+    assert np.allclose(total, 0, atol=2e-3)
 
 
 def test_signal_bipolar_reference_spans_all_channels_ignoring_selection(synthetic_edf_bytes: bytes):
