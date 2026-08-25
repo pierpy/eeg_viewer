@@ -85,6 +85,40 @@ Build di produzione:
 npm run build
 ```
 
+## Deploy con Docker
+
+`docker-compose.yml` (alla radice del repo) avvia backend e frontend
+insieme: nginx serve i file statici del frontend e fa da reverse proxy
+verso il backend per le chiamate `/api`, così il browser parla con una
+sola origine (nessun problema di CORS).
+
+```bash
+docker compose up --build -d
+```
+
+L'app sarà su `http://localhost` (porta 80). I file caricati persistono
+nel volume Docker `uploads` tra un riavvio e l'altro (percorso
+configurato via `EEG_VIEWER_UPLOAD_DIR`).
+
+Per metterla online gratis, il modo più semplice per un servizio che
+resta sempre attivo (nessun "cold start") è una VM **Oracle Cloud Always
+Free** (gratuita a tempo indeterminato, non solo per un periodo di
+prova):
+
+1. Crea un account Oracle Cloud e una VM "Always Free" (Ubuntu, anche
+   la shape ARM Ampere va benissimo — il `Dockerfile` del backend
+   installa `gcc` apposta per compilare le dipendenze native su ARM).
+2. Sulla VM: installa Docker (`curl -fsSL https://get.docker.com | sh`)
+   e il plugin compose (incluso nelle build recenti di Docker).
+3. Apri la porta 80 sia nel "Security List"/"Network Security Group"
+   della VM su Oracle Cloud sia nel firewall del sistema
+   (`sudo ufw allow 80`, se `ufw` è attivo).
+4. `git clone` il repository sulla VM, poi `docker compose up --build -d`
+   nella cartella del progetto.
+5. L'app è raggiungibile sull'IP pubblico della VM. Per un dominio e
+   HTTPS gratuiti puoi usare un sottodominio gratuito (es. DuckDNS) che
+   punta all'IP della VM, con Let's Encrypt/Certbot davanti a nginx.
+
 ## Uso
 
 1. Apri l'app e carica un file `.edf` tramite "Apri file .edf".

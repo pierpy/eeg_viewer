@@ -1,0 +1,21 @@
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      - EEG_VIEWER_UPLOAD_DIR=/data/uploads
+    volumes:
+      - uploads:/data/uploads
+    expose:
+      - "8000"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  uploads:
