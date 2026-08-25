@@ -192,3 +192,14 @@ npm run build
   `Spectrogram.tsx`, che non possono leggere le CSS custom properties.
   I colori dei tracciati usano la palette categorica validata dalla skill
   `dataviz` (ordine fisso, CVD-safe) invece di colori scelti a caso.
+- Il grafico multicanale mostra un righello temporale fisso in alto (resta
+  visibile scorrendo grazie a `position: sticky`, `EegCanvas.tsx`) con
+  tick "nice" in secondi condivisi con griglie verticali attraverso tutti
+  i canali, e per ciascun canale l'ampiezza di picco raggiunta al bordo
+  della riga nella sua unità fisica (es. "±212 µV") — calcolata dallo
+  stesso auto-scale usato per disegnare il tracciato, quindi resta
+  coerente quando cambi guadagno o finestra. L'unità viene letta da
+  `ChannelInfo.unit` (EDF); per un canale derivato da un montaggio
+  bipolare si usa l'unità di uno dei due canali sorgente. La funzione di
+  calcolo dei tick (`niceTicks`, `frontend/src/canvasUtils.ts`) è
+  condivisa con lo spettrogramma.

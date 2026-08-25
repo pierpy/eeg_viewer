@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getSpectrogram } from "../api/client";
+import { niceTicks } from "../canvasUtils";
 import { CANVAS_COLORS, type Theme } from "../theme";
 import type { FilterSpec, ReferenceMode, SpectrogramResponse } from "../types";
 
@@ -73,17 +74,6 @@ function seqColor(t: number): string {
   const i0 = Math.floor(scaled);
   const i1 = Math.min(i0 + 1, SEQ_STEPS.length - 1);
   return lerpColor(SEQ_STEPS[i0], SEQ_STEPS[i1], scaled - i0);
-}
-
-function niceTicks(min: number, max: number, count: number): number[] {
-  if (max <= min) return [min];
-  const rawStep = (max - min) / count;
-  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
-  const residual = rawStep / magnitude;
-  const step = (residual > 5 ? 10 : residual > 2 ? 5 : residual > 1 ? 2 : 1) * magnitude;
-  const ticks: number[] = [];
-  for (let v = Math.ceil(min / step) * step; v <= max; v += step) ticks.push(Math.round(v * 100) / 100);
-  return ticks;
 }
 
 export function Spectrogram({

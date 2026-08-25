@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { niceTicks } from "../canvasUtils";
 import { CANVAS_COLORS, TRACE_COLORS, type Theme } from "../theme";
 import type { BadSegment, ChannelSignal } from "../types";
 
@@ -10,6 +11,8 @@ interface Props {
   startSec: number;
   windowSec: number;
   theme: Theme;
+  /** channel name -> physical unit (e.g. "uV"), used for the amplitude label. */
+  channelUnits: Record<string, string>;
   onCreateSegment: (startSec: number, endSec: number) => void;
   onRemoveSegment: (id: string) => void;
   rowHeight?: number;
@@ -17,6 +20,20 @@ interface Props {
 
 const DRAG_THRESHOLD_PX = 4;
 const FONT_STACK = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+const RULER_HEIGHT = 22;
+
+/** Derived (bipolar "A-B") channels have no unit of their own; fall back
+ * to whichever source channel we have a unit for. */
+function resolveUnit(name: string, channelUnits: Record<string, string>): string {
+  if (channelUnits[name]) return channelUnits[name];
+  const dash = name.indexOf("-");
+  if (dash <= 0) return "";
+  return channelUnits[name.slice(0, dash)] || channelUnits[name.slice(dash + 1)] || "";
+}
+
+function formatAmplitude(value: number): string {
+  return value >= 10 ? Math.round(value).toString() : (Math.round(value * 10) / 10).toString();
+}
 
 function isTimeInBadSegment(t: number, badSegments: BadSegment[]): boolean {
   return badSegments.some((s) => t >= s.startSec && t <= s.endSec);
@@ -77,11 +94,13 @@ export function EegCanvas({
   startSec,
   windowSec,
   theme,
+  channelUnits,
   onCreateSegment,
   onRemoveSegment,
   rowHeight = 70,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rulerRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ startX: number; active: boolean } | null>(null);
@@ -117,6 +136,7 @@ export function EegCanvas({
 
       const colors = CANVAS_COLORS[theme];
       const traceColors = TRACE_COLORS[theme];
+      const timeTicks = niceTicks(startSec, startSec + windowSec, Math.max(Math.round(width / 90), 2));
 
       const ctx = canvas2.getContext("2d");
       if (!ctx) return;
@@ -124,6 +144,16 @@ export function EegCanvas({
       ctx.clearRect(0, 0, width, height);
       ctx.fillStyle = colors.background;
       ctx.fillRect(0, 0, width, height);
+
+      // vertical time gridlines, shared across all channel rows
+      ctx.strokeStyle = colors.gridWeak;
+      timeTicks.forEach((t) => {
+        const x = xAtTime(t, width);
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      });
 
       channels.forEach((ch, i) => {
         const isBad = isChannelBad(ch.name, badChannels);
@@ -183,6 +213,19 @@ export function EegCanvas({
           });
           ctx.stroke();
           ctx.restore();
+
+          // Peak amplitude reached at the row's drawn edge, in the
+          // channel's physical unit — lets the reader read real values
+          // off an otherwise unlabeled, auto-scaled trace.
+          if (maxAbs > 0) {
+            const edgeValue = maxAbs / gain;
+            const unit = resolveUnit(ch.name, channelUnits);
+            ctx.fillStyle = colors.mutedText;
+            ctx.font = "10.5px " + FONT_STACK;
+            ctx.textAlign = "right";
+            ctx.fillText(`±${formatAmplitude(edgeValue)} ${unit}`.trim(), width - 6, i * rowHeight + 14);
+            ctx.textAlign = "left";
+          }
         }
 
         ctx.fillStyle = isBad ? colors.badLabel : colors.text;
@@ -210,11 +253,58 @@ export function EegCanvas({
       });
     }
 
+    // Sticky time ruler drawn into its own small canvas so it stays
+    // pinned to the top of the scrollable panel via CSS position:sticky.
+    function drawRuler() {
+      const ruler = rulerRef.current;
+      const container2 = containerRef.current;
+      if (!ruler || !container2) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const width = container2.clientWidth;
+      ruler.width = width * dpr;
+      ruler.height = RULER_HEIGHT * dpr;
+      ruler.style.width = `${width}px`;
+      ruler.style.height = `${RULER_HEIGHT}px`;
+
+      const ctx = ruler.getContext("2d");
+      if (!ctx) return;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const colors = CANVAS_COLORS[theme];
+      ctx.clearRect(0, 0, width, RULER_HEIGHT);
+      ctx.fillStyle = colors.background;
+      ctx.fillRect(0, 0, width, RULER_HEIGHT);
+      ctx.strokeStyle = colors.gridStrong;
+      ctx.beginPath();
+      ctx.moveTo(0, RULER_HEIGHT - 0.5);
+      ctx.lineTo(width, RULER_HEIGHT - 0.5);
+      ctx.stroke();
+
+      ctx.font = "10.5px " + FONT_STACK;
+      ctx.fillStyle = colors.mutedText;
+      ctx.textBaseline = "middle";
+      const timeTicks = niceTicks(startSec, startSec + windowSec, Math.max(Math.round(width / 90), 2));
+      timeTicks.forEach((t) => {
+        const x = xAtTime(t, width);
+        ctx.strokeStyle = colors.gridStrong;
+        ctx.beginPath();
+        ctx.moveTo(x, RULER_HEIGHT - 7);
+        ctx.lineTo(x, RULER_HEIGHT);
+        ctx.stroke();
+        ctx.textAlign = x < 16 ? "left" : x > width - 16 ? "right" : "center";
+        ctx.fillText(`${t}s`, x, RULER_HEIGHT / 2 - 4);
+      });
+    }
+
     draw();
-    const observer = new ResizeObserver(draw);
+    drawRuler();
+    const observer = new ResizeObserver(() => {
+      draw();
+      drawRuler();
+    });
     observer.observe(container);
     return () => observer.disconnect();
-  }, [channels, gain, rowHeight, badChannels, badSegments, startSec, windowSec, xAtTime, theme]);
+  }, [channels, gain, rowHeight, badChannels, badSegments, startSec, windowSec, xAtTime, theme, channelUnits]);
 
   function findSegmentAtTime(t: number): BadSegment | undefined {
     return badSegments.find((s) => t >= s.startSec && t <= s.endSec);
@@ -287,6 +377,7 @@ export function EegCanvas({
 
   return (
     <div className="eeg-canvas" ref={containerRef} onMouseDown={handleMouseDown}>
+      <canvas className="eeg-canvas__ruler" ref={rulerRef} />
       <canvas ref={canvasRef} />
       <div className="eeg-canvas__preview" ref={previewRef} />
     </div>

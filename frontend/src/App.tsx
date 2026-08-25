@@ -59,6 +59,10 @@ export default function App() {
   const [reconnectFailedFor, setReconnectFailedFor] = useState<string | null>(null);
 
   const selectedChannels = useMemo(() => Array.from(selected), [selected]);
+  const channelUnits = useMemo(
+    () => Object.fromEntries((fileInfo?.channels ?? []).map((c) => [c.name, c.unit])),
+    [fileInfo]
+  );
 
   function appendHistory(action: string, details: Record<string, unknown> = {}) {
     setHistory((h) => {
@@ -409,6 +413,7 @@ export default function App() {
                 startSec={startSec}
                 windowSec={windowSec}
                 theme={theme}
+                channelUnits={channelUnits}
                 onCreateSegment={addBadSegment}
                 onRemoveSegment={removeBadSegment}
               />
