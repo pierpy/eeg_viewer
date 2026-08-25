@@ -35,6 +35,8 @@ export interface GetSignalParams {
   durationSec: number;
   filters: FilterSpec[];
   reference?: ReferenceMode;
+  // Excluded from the CAR average / bipolar chain when reference != "none".
+  badChannels?: string[];
   maxPoints?: number;
   signal?: AbortSignal;
 }
@@ -49,6 +51,7 @@ export async function getSignal(params: GetSignalParams): Promise<SignalResponse
       duration_sec: params.durationSec,
       filters: params.filters,
       reference: params.reference ?? "none",
+      bad_channels: params.badChannels ?? [],
       max_points: params.maxPoints,
     }),
     signal: params.signal,
@@ -108,7 +111,8 @@ export interface GetSpectrogramParams {
   durationSec: number;
   filters: FilterSpec[];
   reference?: ReferenceMode;
-  montageChannels?: string[];
+  // Excluded from the CAR average / bipolar chain when reference != "none".
+  badChannels?: string[];
   maxFreq?: number;
   signal?: AbortSignal;
 }
@@ -123,7 +127,7 @@ export async function getSpectrogram(params: GetSpectrogramParams): Promise<Spec
       duration_sec: params.durationSec,
       filters: params.filters,
       reference: params.reference ?? "none",
-      montage_channels: params.montageChannels ?? [],
+      bad_channels: params.badChannels ?? [],
       max_freq: params.maxFreq,
     }),
     signal: params.signal,

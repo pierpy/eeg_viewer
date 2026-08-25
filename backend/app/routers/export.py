@@ -22,7 +22,13 @@ async def export_mat(file_id: str, req: ExportRequest) -> Response:
     except EdfNotFoundError:
         raise HTTPException(status_code=404, detail="File not found")
 
-    channel_names = req.channels or [c.name for c in info.channels]
+    if req.reference == "none":
+        channel_names = req.channels or [c.name for c in info.channels]
+    else:
+        # The reference/montage always spans every non-bad channel in the
+        # file, regardless of `channels` — a bad channel must never enter
+        # a common average or a bipolar chain.
+        channel_names = [c.name for c in info.channels if c.name not in req.bad_channels]
     if not channel_names:
         raise HTTPException(status_code=400, detail="At least one channel must be requested")
 

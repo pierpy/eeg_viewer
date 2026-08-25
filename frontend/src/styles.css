@@ -606,6 +606,27 @@ input[type="checkbox"] {
   letter-spacing: normal;
 }
 
+.channel-list__hint {
+  margin: -4px 0 8px 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.channel-list__checkbox input:disabled {
+  cursor: not-allowed;
+}
+
+.channel-list__checkbox:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.channel-list__actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .channel-list__bad-toggle--active {
   background: var(--danger);
   border-color: var(--danger);

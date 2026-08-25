@@ -16,11 +16,17 @@ async def get_spectrogram(file_id: str, req: SpectrogramRequest) -> SpectrogramR
     if req.reference == "none":
         read_channels = [req.channel]
     else:
-        if not req.montage_channels:
-            raise HTTPException(
-                status_code=400, detail="montage_channels is required when reference is not 'none'"
-            )
-        read_channels = req.montage_channels
+        # As with /signal: the reference/montage always spans every
+        # non-bad channel in the file, not whatever the frontend happens
+        # to have selected — a bad channel must never enter a common
+        # average or a bipolar chain.
+        try:
+            info = store.get_info(file_id)
+        except EdfNotFoundError:
+            raise HTTPException(status_code=404, detail="File not found")
+        read_channels = [c.name for c in info.channels if c.name not in req.bad_channels]
+        if not read_channels:
+            raise HTTPException(status_code=400, detail="All channels are marked bad; nothing to reference")
 
     try:
         windows = store.read_window(file_id, read_channels, req.start_sec, req.duration_sec)
@@ -41,7 +47,7 @@ async def get_spectrogram(file_id: str, req: SpectrogramRequest) -> SpectrogramR
         sr = rates.pop()
         raw_signals = {name: arr for name, (arr, _) in windows.items()}
         try:
-            referenced = apply_reference(raw_signals, req.montage_channels, req.reference)
+            referenced = apply_reference(raw_signals, read_channels, req.reference)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
         if req.channel not in referenced:

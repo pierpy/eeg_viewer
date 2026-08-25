@@ -148,10 +148,14 @@ prova):
     finestra temporale e gli stessi filtri della vista corrente. Un solo
     canale alla volta; clicca di nuovo (o la ×) per chiuderlo.
 12. Cambia "Montaggio / riferimento" per applicare la media comune (CAR)
-    o un montaggio bipolare sequenziale (ch1-ch2, ch2-ch3, ...) ai canali
-    selezionati; il tracciato, lo spettrogramma e l'export si aggiornano
-    di conseguenza. La marcatura BAD resta sui canali originali (un
-    canale derivato appare bad se lo è uno dei due canali sorgente).
+    o un montaggio bipolare sequenziale (ch1-ch2, ch2-ch3, ...). Quando un
+    riferimento è attivo, il calcolo comprende **sempre tutti i canali non
+    marcati bad** del file — la selezione nella sidebar si disabilita
+    perché non ha più effetto: un canale bad è sempre escluso, gli altri
+    good sono sempre mostrati. Il tracciato, lo spettrogramma e l'export
+    si aggiornano di conseguenza. La marcatura BAD resta sui canali
+    originali (un canale derivato appare bad se lo è uno dei due canali
+    sorgente).
 13. L'icona 🌙/☀️ in alto a destra alterna tema chiaro/scuro; la scelta
     viene ricordata e, se non l'hai mai cambiata esplicitamente, segue
     automaticamente il tema del sistema operativo.
@@ -206,16 +210,29 @@ prova):
   della pipeline di filtri (raw → riferimento → filtri → display/export),
   come da convenzione EEG standard, ed è condiviso da `/signal`,
   `/spectrogram` ed `/export/mat`. "Media comune (CAR)" sottrae la media
-  dei canali richiesti da ciascuno di essi; "Bipolare" calcola derivazioni
+  dei canali coinvolti da ciascuno di essi; "Bipolare" calcola derivazioni
   in catena (`ch[i] - ch[i+1]`), producendo un canale in meno rispetto ai
   canali in ingresso, con nome `"A-B"`. Entrambe richiedono che tutti i
   canali coinvolti abbiano la stessa frequenza di campionamento (altrimenti
-  l'API risponde 400 con un messaggio esplicativo). La marcatura bad
-  channel resta sui canali originali; nella vista un canale derivato
-  appare "bad" se lo è uno dei due canali sorgente
-  (`frontend/src/components/EegCanvas.tsx`, `isChannelBad`). Lo
-  spettrogramma di un canale in montaggio bipolare risolve automaticamente
-  la coppia della catena a cui appartiene il canale cliccato
+  l'API risponde 400 con un messaggio esplicativo).
+  **Quando un riferimento è attivo, il calcolo (e la vista) comprendono
+  sempre tutti i canali non marcati bad del file** — non solo quelli
+  selezionati nel visualizzatore: un canale bad non deve mai entrare in
+  una media comune o in una catena bipolare, e questo vale a prescindere
+  da cosa hai spuntato nella lista canali (`bad_channels` è un campo
+  esplicito di `SignalRequest`/`SpectrogramRequest`/`ExportRequest`, il
+  set di canali "buoni" è ricalcolato lato server da
+  `store.get_info(file_id)` meno `bad_channels`, ignorando `channels` in
+  questa modalità). Di conseguenza, mentre un riferimento è attivo la
+  selezione dei canali nella sidebar è disabilitata (con una nota che lo
+  spiega): il canale bad marcato viene sempre escluso in automatico e
+  gli altri canali good vengono sempre mostrati tutti, indipendentemente
+  da quali fossero spuntati. La marcatura bad channel resta sui canali
+  originali; nella vista un canale derivato appare "bad" se lo è uno dei
+  due canali sorgente (`frontend/src/components/EegCanvas.tsx`,
+  `isChannelBad`). Lo spettrogramma di un canale in montaggio bipolare
+  risolve automaticamente la coppia della catena (sui soli canali good)
+  a cui appartiene il canale cliccato
   (`frontend/src/components/Spectrogram.tsx`, `resolveChannel`).
 - L'aspetto grafico usa design token CSS (`frontend/src/styles.css`, custom
   properties su `:root`) con varianti chiaro/scuro; `frontend/src/theme.ts`

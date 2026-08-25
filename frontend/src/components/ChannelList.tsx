@@ -5,6 +5,10 @@ interface Props {
   selected: Set<string>;
   badChannels: Set<string>;
   spectrogramChannel: string | null;
+  // True while a reference/montage is active: the view then always shows
+  // every good channel regardless of selection, so the checkboxes (and
+  // Tutti/Nessuno) have no effect and are disabled to avoid confusion.
+  selectionDisabled: boolean;
   onChange: (selected: Set<string>) => void;
   onToggleBad: (name: string) => void;
   onToggleSpectrogram: (name: string) => void;
@@ -15,6 +19,7 @@ export function ChannelList({
   selected,
   badChannels,
   spectrogramChannel,
+  selectionDisabled,
   onChange,
   onToggleBad,
   onToggleSpectrogram,
@@ -44,23 +49,32 @@ export function ChannelList({
           )}
         </span>
         <div className="channel-list__actions">
-          <button type="button" onClick={selectAll}>
+          <button type="button" onClick={selectAll} disabled={selectionDisabled}>
             Tutti
           </button>
-          <button type="button" onClick={selectNone}>
+          <button type="button" onClick={selectNone} disabled={selectionDisabled}>
             Nessuno
           </button>
         </div>
       </div>
+      {selectionDisabled && (
+        <p className="channel-list__hint">
+          Montaggio attivo: vengono mostrati tutti i canali non-bad, la selezione è ignorata.
+        </p>
+      )}
       <div className="channel-list__items">
         {channels.map((ch) => {
           const isBad = badChannels.has(ch.name);
           return (
             <div key={ch.name} className={`channel-list__item${isBad ? " channel-list__item--bad" : ""}`}>
-              <label className="channel-list__checkbox">
+              <label
+                className="channel-list__checkbox"
+                title={selectionDisabled ? "Selezione ignorata mentre un montaggio è attivo" : undefined}
+              >
                 <input
                   type="checkbox"
                   checked={selected.has(ch.name)}
+                  disabled={selectionDisabled}
                   onChange={() => toggle(ch.name)}
                 />
                 <span className="channel-list__name">{ch.name}</span>

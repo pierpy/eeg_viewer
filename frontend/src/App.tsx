@@ -59,9 +59,18 @@ export default function App() {
   const [reconnectFailedFor, setReconnectFailedFor] = useState<string | null>(null);
 
   const selectedChannels = useMemo(() => Array.from(selected), [selected]);
+  const badChannelList = useMemo(() => Array.from(badChannels), [badChannels]);
   const channelUnits = useMemo(
     () => Object.fromEntries((fileInfo?.channels ?? []).map((c) => [c.name, c.unit])),
     [fileInfo]
+  );
+  // The reference/montage always spans every non-bad channel in the file
+  // (regardless of the view selection) — mirrors the backend's own
+  // computation, used here to know which channels the live view will
+  // actually show while a montage is active.
+  const goodChannels = useMemo(
+    () => (fileInfo?.channels ?? []).filter((c) => !badChannels.has(c.name)).map((c) => c.name),
+    [fileInfo, badChannels]
   );
 
   function appendHistory(action: string, details: Record<string, unknown> = {}) {
@@ -252,7 +261,11 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (!fileInfo || selectedChannels.length === 0) {
+    // In "none" mode the view is exactly the selection, so an empty
+    // selection means nothing to show. Under a reference/montage the
+    // view always shows every good channel regardless of selection, so
+    // it stays meaningful even with nothing checked.
+    if (!fileInfo || (reference === "none" && selectedChannels.length === 0)) {
       setSignalData(null);
       return;
     }
@@ -263,11 +276,12 @@ export default function App() {
       try {
         const data = await getSignal({
           fileId: fileInfo.file_id,
-          channels: selectedChannels,
+          channels: reference === "none" ? selectedChannels : fileInfo.channels.map((c) => c.name),
           startSec,
           durationSec: windowSec,
           filters,
           reference,
+          badChannels: badChannelList,
           signal: controller.signal,
         });
         setSignalData(data);
@@ -284,7 +298,7 @@ export default function App() {
       controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileInfo, selectedChannels.join(","), startSec, windowSec, JSON.stringify(filters), reference]);
+  }, [fileInfo, selectedChannels.join(","), startSec, windowSec, JSON.stringify(filters), reference, badChannelList.join(",")]);
 
   // Persist the current annotation/view state for this file whenever it
   // changes, so reopening the same .edf later (even after a reload)
@@ -371,6 +385,7 @@ export default function App() {
               selected={selected}
               badChannels={badChannels}
               spectrogramChannel={spectrogramChannel}
+              selectionDisabled={reference !== "none"}
               onChange={setSelected}
               onToggleBad={toggleBadChannel}
               onToggleSpectrogram={toggleSpectrogram}
@@ -428,7 +443,8 @@ export default function App() {
                 windowSec={windowSec}
                 filters={filters}
                 reference={reference}
-                montageChannels={selectedChannels}
+                goodChannels={goodChannels}
+                badChannels={badChannelList}
                 theme={theme}
                 onClose={() => setSpectrogramChannel(null)}
               />

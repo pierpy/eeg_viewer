@@ -54,11 +54,19 @@ ReferenceMode = Literal["none", "car", "bipolar"]
 
 
 class SignalRequest(BaseModel):
+    # Which channels to display. Ignored when reference != "none": the
+    # reference/montage is always computed (and returned) over every
+    # non-bad channel in the file — see bad_channels below and
+    # routers/signal.py.
     channels: list[str]
     start_sec: float = Field(ge=0)
     duration_sec: float = Field(gt=0)
     filters: list[FilterSpec] = Field(default_factory=list)
     reference: ReferenceMode = "none"
+    # Channels excluded from the CAR average / bipolar chain whenever
+    # reference != "none". Has no effect when reference == "none" (a bad
+    # channel can still be viewed as-recorded).
+    bad_channels: list[str] = Field(default_factory=list)
     # Max points returned per channel; the server decimates if needed.
     max_points: Optional[int] = None
 
@@ -112,16 +120,15 @@ class ExportRequest(BaseModel):
 class SpectrogramRequest(BaseModel):
     # The channel to compute. When reference != "none" this may be a
     # derived name (e.g. "EEG1-EEG2" for bipolar) that must appear once
-    # `reference` is applied to `montage_channels`.
+    # `reference` is applied over every non-bad channel in the file.
     channel: str
     start_sec: float = Field(ge=0)
     duration_sec: float = Field(gt=0)
     filters: list[FilterSpec] = Field(default_factory=list)
     reference: ReferenceMode = "none"
-    # Required when reference != "none": the raw channel set (and order)
-    # the reference/montage is computed over — normally the same channels
-    # currently shown in the main viewer.
-    montage_channels: list[str] = Field(default_factory=list)
+    # Channels excluded from the CAR average / bipolar chain whenever
+    # reference != "none" — see routers/spectrogram.py.
+    bad_channels: list[str] = Field(default_factory=list)
     # Frequencies above this are dropped from the response; EEG-relevant
     # activity lives well under Nyquist, and clipping keeps both the
     # payload and the color scale focused. None = up to Nyquist.

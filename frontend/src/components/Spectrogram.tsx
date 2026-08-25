@@ -11,7 +11,12 @@ interface Props {
   windowSec: number;
   filters: FilterSpec[];
   reference: ReferenceMode;
-  montageChannels: string[];
+  // All non-bad channels in the file, in file order — the same set the
+  // backend always uses for the CAR average / bipolar chain, regardless
+  // of what's checked in the channel list. Used here only to resolve
+  // which chain pair a clicked raw channel belongs to.
+  goodChannels: string[];
+  badChannels: string[];
   theme: Theme;
   onClose: () => void;
 }
@@ -22,12 +27,12 @@ interface Props {
  * single-channel spectrogram for it, so we fall back to the chain pair it
  * takes part in (preferring it as the first element, i.e. "raw-next").
  */
-function resolveChannel(raw: string, reference: ReferenceMode, montageChannels: string[]): string {
+function resolveChannel(raw: string, reference: ReferenceMode, goodChannels: string[]): string {
   if (reference !== "bipolar") return raw;
-  const idx = montageChannels.indexOf(raw);
+  const idx = goodChannels.indexOf(raw);
   if (idx === -1) return raw;
-  if (idx < montageChannels.length - 1) return `${montageChannels[idx]}-${montageChannels[idx + 1]}`;
-  if (idx > 0) return `${montageChannels[idx - 1]}-${montageChannels[idx]}`;
+  if (idx < goodChannels.length - 1) return `${goodChannels[idx]}-${goodChannels[idx + 1]}`;
+  if (idx > 0) return `${goodChannels[idx - 1]}-${goodChannels[idx]}`;
   return raw;
 }
 
@@ -83,7 +88,8 @@ export function Spectrogram({
   windowSec,
   filters,
   reference,
-  montageChannels,
+  goodChannels,
+  badChannels,
   theme,
   onClose,
 }: Props) {
@@ -95,7 +101,7 @@ export function Spectrogram({
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const resolvedChannel = resolveChannel(channel, reference, montageChannels);
+  const resolvedChannel = resolveChannel(channel, reference, goodChannels);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -110,7 +116,7 @@ export function Spectrogram({
           durationSec: windowSec,
           filters,
           reference,
-          montageChannels,
+          badChannels,
           signal: controller.signal,
         });
         setData(resp);
@@ -126,7 +132,7 @@ export function Spectrogram({
       controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileId, resolvedChannel, startSec, windowSec, JSON.stringify(filters), reference, montageChannels.join(",")]);
+  }, [fileId, resolvedChannel, startSec, windowSec, JSON.stringify(filters), reference, badChannels.join(",")]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
