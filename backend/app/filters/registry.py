@@ -41,7 +41,14 @@ FILTER_REGISTRY: dict[str, _FilterFn] = {
 
 
 def apply_filter_pipeline(x: np.ndarray, sample_rate: float, specs: list[FilterSpec]) -> np.ndarray:
-    """Apply enabled filters in order, chaining output -> input."""
+    """Apply enabled filters in order, chaining output -> input.
+
+    `x` may be 1D (one channel) or 2D (n_channels, n_samples) — scipy's
+    filtfilt/sosfiltfilt filter along the last axis by default, so a
+    stack of same-sample-rate channels can be run through in one call
+    instead of looping per channel in Python. Length checks below use
+    shape[-1] (the sample count) so both shapes work unchanged.
+    """
     out = x
     for spec in specs:
         if not spec.enabled:
@@ -51,7 +58,7 @@ def apply_filter_pipeline(x: np.ndarray, sample_rate: float, specs: list[FilterS
             raise ValueError(f"Unknown filter type: {spec.type}")
         # Filtfilt-style filters need a signal longer than a small multiple
         # of the filter order; skip degenerate/too-short chunks gracefully.
-        if len(out) < 32:
+        if out.shape[-1] < 32:
             continue
         out = fn(out, sample_rate, spec)
     return out

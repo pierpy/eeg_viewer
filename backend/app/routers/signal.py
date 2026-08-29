@@ -17,12 +17,15 @@ def _decimate(x: np.ndarray, max_points: int) -> np.ndarray:
 
     Filters have already been applied to the full-resolution signal before
     this runs, so decimation only affects rendering density, not the
-    filter result.
+    filter result. Works on the last axis so it applies unchanged to a
+    single channel (1D) or a batch of channels stacked (2D, n_channels x
+    n_samples).
     """
-    if max_points <= 0 or len(x) <= max_points:
+    n_samples = x.shape[-1]
+    if max_points <= 0 or n_samples <= max_points:
         return x
-    stride = int(np.ceil(len(x) / max_points))
-    return x[::stride]
+    stride = int(np.ceil(n_samples / max_points))
+    return x[..., ::stride]
 
 
 @router.post("/{file_id}/signal", response_model=SignalResponse)
@@ -72,22 +75,39 @@ async def get_signal(file_id: str, req: SignalRequest) -> SignalResponse:
         rate_by_name = {name: sample_rate for name in referenced}
 
     max_points = req.max_points or MAX_POINTS_PER_CHANNEL
-    channels: list[ChannelSignal] = []
-    for name, raw in referenced.items():
-        sr = rate_by_name[name]
+
+    # Channels sharing a sample rate are filtered as one stacked batch
+    # instead of looping per channel in Python — scipy's filtfilt/
+    # sosfiltfilt filter along the last axis natively, so this is the
+    # same total math with far less per-channel call/allocation overhead.
+    # A reference/montage always has a single sample rate across every
+    # channel (enforced above), so that case is always one batch; "none"
+    # mode groups the (usually few) selected channels by their own rate.
+    names_by_rate: dict[float, list[str]] = {}
+    for name in referenced:
+        names_by_rate.setdefault(rate_by_name[name], []).append(name)
+
+    # Grouping by rate can interleave the output relative to the request;
+    # remember the original (channel_order-derived) position of each name
+    # so the response comes back in that same order regardless of grouping.
+    order_index = {name: i for i, name in enumerate(referenced)}
+
+    by_name: dict[str, ChannelSignal] = {}
+    for sr, names in names_by_rate.items():
+        matrix = np.vstack([referenced[name] for name in names])
         try:
-            filtered = apply_filter_pipeline(raw, sr, req.filters)
+            filtered = apply_filter_pipeline(matrix, sr, req.filters)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
         decimated = _decimate(filtered, max_points)
-        effective_sr = sr * (len(decimated) / len(filtered)) if len(filtered) else sr
+        n_samples = filtered.shape[-1]
+        effective_sr = sr * (decimated.shape[-1] / n_samples) if n_samples else sr
         # Rounding trims the JSON payload a lot (raw float64 repr runs to
         # ~17 digits) with no visible effect — display/export precision
         # needs nowhere near that, and this only affects the wire format.
-        channels.append(
-            ChannelSignal(
-                name=name, sample_rate=effective_sr, values=np.round(decimated, 3).tolist()
-            )
-        )
+        rounded = np.round(decimated, 3)
+        for row, name in zip(rounded, names):
+            by_name[name] = ChannelSignal(name=name, sample_rate=effective_sr, values=row.tolist())
 
+    channels = [by_name[name] for name in sorted(by_name, key=order_index.get)]
     return SignalResponse(start_sec=req.start_sec, duration_sec=req.duration_sec, channels=channels)
