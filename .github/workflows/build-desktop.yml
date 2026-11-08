@@ -1,0 +1,51 @@
+name: Build desktop executable
+
+# Manual trigger only: this produces a packaged single-file build (see
+# BUILD.md), not something that needs to run on every push. PyInstaller
+# can't cross-compile, so each OS is built on a matching GitHub-hosted
+# runner.
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: eeg-viewer-windows
+            exe_path: backend/dist/eeg-viewer.exe
+          - os: macos-latest
+            artifact_name: eeg-viewer-macos
+            exe_path: backend/dist/eeg-viewer
+          - os: ubuntu-latest
+            artifact_name: eeg-viewer-linux
+            exe_path: backend/dist/eeg-viewer
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build executable
+        working-directory: backend
+        run: |
+          python -m pip install -r requirements-build.txt
+          pyinstaller --noconfirm eeg_viewer.spec
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.exe_path }}
