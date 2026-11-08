@@ -85,6 +85,12 @@ Build di produzione:
 npm run build
 ```
 
+## Eseguibile desktop (per condividere l'app senza Docker/Python/Node)
+
+Vedi [BUILD.md](BUILD.md) per creare un singolo file eseguibile
+(Windows/macOS/Linux) che include backend e frontend: si lancia con un
+doppio click, apre un server locale e il browser predefinito.
+
 ## Deploy con Docker
 
 `docker-compose.yml` (alla radice del repo) avvia backend e frontend

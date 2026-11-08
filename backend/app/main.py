@@ -1,6 +1,10 @@
+import sys
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.routers import export, files, signal, spectrogram
 
@@ -32,3 +36,21 @@ app.include_router(spectrogram.router)
 @app.get("/api/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+# Serves the built frontend (frontend/dist) from this same process when
+# present, so a packaged single-executable build (PyInstaller) needs no
+# separate nginx/static server — only the desktop launcher and CI builds
+# produce this directory, so a plain `uvicorn app.main:app` dev run (no
+# frontend build) is unaffected and just skips this mount.
+def _frontend_dist_dir() -> Path:
+    # PyInstaller's --onefile mode extracts bundled data under
+    # sys._MEIPASS at runtime; outside of that, resolve relative to the
+    # repo layout (backend/app/main.py -> ../../frontend/dist).
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2]))
+    return base / "frontend" / "dist"
+
+
+_dist_dir = _frontend_dist_dir()
+if _dist_dir.is_dir():
+    app.mount("/", StaticFiles(directory=_dist_dir, html=True), name="frontend")
